@@ -1,0 +1,75 @@
+{
+  "name": "downloadflow",
+  "version": "1.0.0",
+  "description": "Aplicación de escritorio para descargar videos de YouTube, TikTok, Instagram y Twitter",
+  "main": "main.js",
+  "author": "DownloadFlow",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dev": "node server.js",
+    "server": "node server.js",
+    "electron": "electron .",
+    "build": "electron-builder",
+    "dist": "electron-builder --win",
+    "dist:portable": "electron-builder --win portable"
+  },
+  "dependencies": {
+    "archiver": "^7.0.1",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.downloadflow.app",
+    "productName": "DownloadFlow",
+    "copyright": "Copyright © 2024 DownloadFlow",
+    "directories": {
+      "output": "dist",
+      "buildResources": "assets"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.png",
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "DownloadFlow"
+    },
+    "files": [
+      "**/*",
+      "!temp/**",
+      "!dist/**",
+      "!bin/**",
+      "!.git/**",
+      "!*.md"
+    ],
+    "extraResources": []
+  },
+  "keywords": [
+    "video",
+    "downloader",
+    "youtube",
+    "tiktok",
+    "instagram",
+    "twitter",
+    "yt-dlp",
+    "electron"
+  ]
+}

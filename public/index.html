@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Descarga videos de YouTube, TikTok, Instagram y Twitter con opciones de calidad, extracción de audio y recortes personalizados">
+    <title>DownloadFlow | Descarga videos de YouTube, TikTok, Instagram y Twitter</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <!-- Fondo animado -->
+    <div class="background-effects">
+        <div class="gradient-orb orb-1"></div>
+        <div class="gradient-orb orb-2"></div>
+        <div class="gradient-orb orb-3"></div>
+        <div class="noise-overlay"></div>
+    </div>
+
+    <main class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="url(#gradient)" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M2 17L12 22L22 17" stroke="url(#gradient)" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                        <path d="M2 12L12 17L22 12" stroke="url(#gradient)" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                        <defs>
+                            <linearGradient id="gradient" x1="2" y1="2" x2="22" y2="22">
+                                <stop stop-color="#00d4ff" />
+                                <stop offset="1" stop-color="#ff00d4" />
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
+                <span class="logo-text">DownloadFlow</span>
+            </div>
+            <p class="tagline">YouTube • TikTok • Instagram • Twitter • Facebook • Vimeo • Twitch • Reddit • SoundCloud
+            </p>
+
+            <!-- Platform Icons -->
+            <div class="platform-icons">
+                <span class="platform-icon youtube" title="YouTube">▶️</span>
+                <span class="platform-icon tiktok" title="TikTok">🎵</span>
+                <span class="platform-icon instagram" title="Instagram">📷</span>
+                <span class="platform-icon twitter" title="Twitter/X">🐦</span>
+                <span class="platform-icon facebook" title="Facebook">📘</span>
+                <span class="platform-icon vimeo" title="Vimeo">🎬</span>
+                <span class="platform-icon twitch" title="Twitch">🎮</span>
+                <span class="platform-icon reddit" title="Reddit">🤖</span>
+                <span class="platform-icon soundcloud" title="SoundCloud">🔊</span>
+            </div>
+
+            <!-- Folder Picker (solo visible en Electron) -->
+            <button id="folderPickerBtn" class="folder-picker-btn" style="display: none;">
+                <svg viewBox="0 0 24 24" fill="none">
+                    <path
+                        d="M22 19C22 20.1046 21.1046 21 20 21H4C2.89543 21 2 20.1046 2 19V5C2 3.89543 2.89543 3 4 3H9L11 6H20C21.1046 6 22 6.89543 22 8V19Z"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <span id="folderPath">Elegir carpeta de descarga</span>
+            </button>
+        </header>
+
+        <!-- Input de URL -->
+        <section class="url-section">
+            <div class="input-wrapper">
+                <div class="input-glow"></div>
+                <input type="text" id="urlInput" class="url-input" placeholder="Pega el link del video o audio..."
+                    autocomplete="off">
+                <button id="fetchBtn" class="fetch-btn">
+                    <svg class="fetch-icon" viewBox="0 0 24 24" fill="none">
+                        <path
+                            d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                    <span>Analizar</span>
+                </button>
+            </div>
+            <div id="errorMessage" class="error-message"></div>
+        </section>
+
+        <!-- Preview del video (oculto inicialmente) -->
+        <section id="videoPreview" class="video-preview hidden">
+            <div class="preview-card">
+                <div class="thumbnail-container">
+                    <img id="thumbnail" src="" alt="Video thumbnail">
+                    <div class="duration-badge" id="durationBadge">0:00</div>
+                    <div class="platform-badge" id="platformBadge" title="YouTube">▶️</div>
+                </div>
+                <div class="video-info">
+                    <h2 id="videoTitle" class="video-title">Título del video</h2>
+                    <p id="videoUploader" class="video-uploader">Subido por</p>
+                </div>
+            </div>
+
+            <!-- Opciones de descarga -->
+            <div class="options-grid">
+                <!-- Tipo de descarga -->
+                <div class="option-card">
+                    <h3 class="option-title">Tipo de descarga</h3>
+                    <div class="toggle-container">
+                        <button id="videoToggle" class="toggle-btn active" data-type="video">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor"
+                                    stroke-width="2" />
+                                <path d="M10 9L15 12L10 15V9Z" fill="currentColor" />
+                            </svg>
+                            <span>Video</span>
+                        </button>
+                        <button id="audioToggle" class="toggle-btn" data-type="audio">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <path d="M9 18V5L21 3V16" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                                <circle cx="6" cy="18" r="3" stroke="currentColor" stroke-width="2" />
+                                <circle cx="18" cy="16" r="3" stroke="currentColor" stroke-width="2" />
+                            </svg>
+                            <span>Audio</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Calidad -->
+                <div class="option-card" id="qualityCard">
+                    <h3 class="option-title">Calidad</h3>
+                    <div class="quality-selector" id="qualitySelector">
+                        <!-- Se llena dinámicamente -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timeline de recorte -->
+            <div class="option-card timeline-card">
+                <div class="timeline-header">
+                    <h3 class="option-title">Recortar video</h3>
+                    <label class="trim-toggle">
+                        <input type="checkbox" id="trimEnabled">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div id="timelineContainer" class="timeline-container disabled">
+                    <div class="time-display">
+                        <span id="startTimeDisplay">0:00</span>
+                        <span class="time-separator">→</span>
+                        <span id="endTimeDisplay">0:00</span>
+                    </div>
+                    <div class="timeline-track" id="timelineTrack">
+                        <div class="timeline-range" id="timelineRange"></div>
+                        <div class="timeline-handle start" id="handleStart" data-handle="start"></div>
+                        <div class="timeline-handle end" id="handleEnd" data-handle="end"></div>
+                    </div>
+                    <div class="timeline-ticks" id="timelineTicks"></div>
+                </div>
+            </div>
+
+            <!-- Botones de acción -->
+            <div class="action-buttons">
+                <button id="addToQueueBtn" class="queue-btn">
+                    <svg viewBox="0 0 24 24" fill="none">
+                        <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                    <span>Agregar a cola</span>
+                </button>
+                <button id="downloadBtn" class="download-btn">
+                    <div class="btn-content">
+                        <svg class="download-icon" viewBox="0 0 24 24" fill="none">
+                            <path d="M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            <path d="M12 3V15M12 15L7 10M12 15L17 10" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        <span>Descargar</span>
+                    </div>
+                    <div class="btn-loader hidden">
+                        <div class="loader-ring"></div>
+                        <span id="progressText">0%</span>
+                    </div>
+                </button>
+            </div>
+        </section>
+
+        <!-- Cola de descargas -->
+        <section id="queueSection" class="queue-section hidden">
+            <div class="queue-header">
+                <h3>
+                    <svg viewBox="0 0 24 24" fill="none">
+                        <path d="M4 6H20M4 12H20M4 18H20" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" />
+                    </svg>
+                    Cola de descargas (<span id="queueCount">0</span>)
+                </h3>
+                <div class="queue-actions">
+                    <button id="clearQueueBtn" class="queue-action-btn" title="Limpiar cola">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path
+                                d="M19 7L18.1327 19.1425C18.0579 20.1891 17.187 21 16.1378 21H7.86224C6.81296 21 5.94208 20.1891 5.86732 19.1425L5 7M10 11V17M14 11V17M15 7V4C15 3.44772 14.5523 3 14 3H10C9.44772 3 9 3.44772 9 4V7M4 7H20"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </button>
+                    <button id="downloadAllBtn" class="download-all-btn">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            <path d="M12 3V15M12 15L7 10M12 15L17 10" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        <span>Descargar todo</span>
+                    </button>
+                </div>
+            </div>
+            <div id="queueList" class="queue-list">
+                <!-- Videos de la cola se agregan dinámicamente -->
+            </div>
+        </section>
+
+        <!-- Barra de progreso -->
+        <div id="progressContainer" class="progress-container hidden">
+            <div class="progress-info">
+                <span id="statusText">Preparando descarga...</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+                <div class="progress-glow"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal de Playlist -->
+    <div id="playlistModal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📋 Playlist detectada</h3>
+                <button class="modal-close" id="closePlaylistModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="playlistInfo">Se encontraron <strong>0</strong> videos en esta playlist.</p>
+                <div class="modal-options">
+                    <button id="singleVideoBtn" class="modal-option-btn">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" stroke-width="2" />
+                            <path d="M10 9L15 12L10 15V9Z" fill="currentColor" />
+                        </svg>
+                        <span>Solo este video</span>
+                    </button>
+                    <button id="addPlaylistBtn" class="modal-option-btn highlight">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M4 6H20M4 12H20M4 18H12" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" />
+                            <path d="M17 15V21M14 18H20" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" />
+                        </svg>
+                        <span>Agregar playlist a cola</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Éxito -->
+    <div id="successModal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content modal-success">
+            <div class="modal-header">
+                <h3>✅ Descarga completada</h3>
+                <button class="modal-close" id="closeSuccessModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="success-icon">
+                    <svg viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
+                        <path d="M8 12L11 15L16 9" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                    </svg>
+                </div>
+                <p id="successFileName" class="success-filename">video.mp4</p>
+                <p id="successFileSize" class="success-filesize">0 MB</p>
+                <div class="success-actions">
+                    <button id="openFileBtn" class="success-btn primary">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path
+                                d="M14 2H6C5.44772 2 5 2.44772 5 3V21C5 21.5523 5.44772 22 6 22H18C18.5523 22 19 21.5523 19 21V7L14 2Z"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M14 2V7H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" />
+                        </svg>
+                        Abrir archivo
+                    </button>
+                    <button id="openFolderBtn" class="success-btn secondary">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path
+                                d="M22 19C22 20.1046 21.1046 21 20 21H4C2.89543 21 2 20.1046 2 19V5C2 3.89543 2.89543 3 4 3H9L11 6H20C21.1046 6 22 6.89543 22 8V19Z"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        Abrir carpeta
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Error -->
+    <div id="errorModal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content modal-error">
+            <div class="modal-header">
+                <h3>❌ Error en la descarga</h3>
+                <button class="modal-close" id="closeErrorModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="error-icon">
+                    <svg viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
+                        <path d="M15 9L9 15M9 9L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                </div>
+                <p id="errorMessage" class="error-text">No se pudo descargar el video.</p>
+                <details class="error-details">
+                    <summary>Ver detalles técnicos</summary>
+                    <pre id="errorDetails"></pre>
+                </details>
+                <button id="retryDownloadBtn" class="error-retry-btn">Reintentar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección de Historial -->
+    <section id="historySection" class="history-section hidden">
+        <div class="history-header">
+            <h3>
+                <svg viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
+                    <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                </svg>
+                Historial de descargas
+            </h3>
+            <button id="toggleHistoryBtn" class="toggle-history-btn">
+                <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                </svg>
+            </button>
+        </div>
+        <div id="historyList" class="history-list">
+            <!-- Items del historial se agregan dinámicamente -->
+        </div>
+        <button id="clearHistoryBtn" class="clear-history-btn hidden">
+            <svg viewBox="0 0 24 24" fill="none">
+                <path
+                    d="M19 7L18.1327 19.1425C18.0579 20.1891 17.187 21 16.1378 21H7.86224C6.81296 21 5.94208 20.1891 5.86732 19.1425L5 7M10 11V17M14 11V17M15 7V4C15 3.44772 14.5523 3 14 3H10C9.44772 3 9 3.44772 9 4V7M4 7H20"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            Limpiar historial
+        </button>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>Hecho con <span class="heart">♥</span> para descargas sin límites</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+
+</html>

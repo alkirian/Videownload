@@ -1812,3 +1812,154 @@ body {
     color: var(--text-muted);
     font-size: 0.8rem;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   DRAFTS SECTION (Borradores)
+   ═══════════════════════════════════════════════════════════ */
+
+.drafts-section {
+    background: var(--bg-card);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    margin-bottom: var(--space-xl);
+    animation: slideUp 0.3s ease-out;
+}
+
+.drafts-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-md);
+}
+
+.drafts-header h3 {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--accent-primary);
+}
+
+.drafts-header h3 svg {
+    width: 18px;
+    height: 18px;
+}
+
+.clear-drafts-btn {
+    background: transparent;
+    border: 1px solid var(--glass-border);
+    color: var(--text-secondary);
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.clear-drafts-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+.clear-drafts-btn:hover {
+    border-color: var(--error);
+    color: var(--error);
+}
+
+.drafts-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.draft-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    background: var(--bg-secondary);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-sm);
+    transition: var(--transition-fast);
+}
+
+.draft-item:hover {
+    border-color: var(--accent-muted);
+}
+
+.draft-item-thumb {
+    width: 60px;
+    height: 45px;
+    border-radius: var(--radius-sm);
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.draft-item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.draft-item-title {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.draft-item-meta {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.draft-item-actions {
+    display: flex;
+    gap: var(--space-xs);
+}
+
+.draft-item-btn {
+    background: transparent;
+    border: 1px solid var(--glass-border);
+    color: var(--text-secondary);
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: var(--transition-fast);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.draft-item-btn.download {
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+}
+
+.draft-item-btn.download:hover {
+    background: var(--accent-muted);
+}
+
+.draft-item-btn.queue:hover {
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+}
+
+.draft-item-btn.remove {
+    padding: var(--space-xs);
+}
+
+.draft-item-btn.remove:hover {
+    border-color: var(--error);
+    color: var(--error);
+}
+
+.draft-item-btn svg {
+    width: 12px;
+    height: 12px;
+}

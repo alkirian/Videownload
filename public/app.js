@@ -92,7 +92,12 @@ const elements = {
     historySection: document.getElementById('historySection'),
     historyList: document.getElementById('historyList'),
     toggleHistoryBtn: document.getElementById('toggleHistoryBtn'),
-    clearHistoryBtn: document.getElementById('clearHistoryBtn')
+    clearHistoryBtn: document.getElementById('clearHistoryBtn'),
+    // Borradores
+    draftsSection: document.getElementById('draftsSection'),
+    draftsCount: document.getElementById('draftsCount'),
+    draftsList: document.getElementById('draftsList'),
+    clearDraftsBtn: document.getElementById('clearDraftsBtn')
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -1048,6 +1053,133 @@ if (isElectron) {
             showError(error.message);
             setLoading(elements.fetchBtn, false);
         }
+    });
+
+    // ═══════════════════════════════════════════════════════════
+    // BORRADORES (DRAFTS) - Cargar y mostrar videos guardados
+    // ═══════════════════════════════════════════════════════════
+
+    // Cargar borradores al iniciar
+    loadAndRenderDrafts();
+
+    // Escuchar actualizaciones de borradores desde main process
+    window.electronAPI.onDraftsUpdated((drafts) => {
+        renderDrafts(drafts);
+    });
+
+    // Limpiar todos los borradores
+    if (elements.clearDraftsBtn) {
+        elements.clearDraftsBtn.addEventListener('click', async () => {
+            await window.electronAPI.clearDrafts();
+            renderDrafts([]);
+        });
+    }
+}
+
+// Cargar borradores desde el almacenamiento
+async function loadAndRenderDrafts() {
+    if (!isElectron) return;
+
+    try {
+        const drafts = await window.electronAPI.getDrafts();
+        renderDrafts(drafts);
+    } catch (error) {
+        console.error('Error cargando borradores:', error);
+    }
+}
+
+// Formatear duración
+function formatDurationDrafts(seconds) {
+    if (!seconds || isNaN(seconds)) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+// Renderizar lista de borradores
+function renderDrafts(drafts) {
+    if (!elements.draftsSection || !elements.draftsList) return;
+
+    // Mostrar u ocultar sección
+    if (drafts.length === 0) {
+        elements.draftsSection.classList.add('hidden');
+        return;
+    }
+
+    elements.draftsSection.classList.remove('hidden');
+    elements.draftsCount.textContent = drafts.length;
+
+    elements.draftsList.innerHTML = drafts.map(draft => `
+        <div class="draft-item" data-id="${draft.id}">
+            <img class="draft-item-thumb" src="${draft.thumbnail}" alt="">
+            <div class="draft-item-info">
+                <div class="draft-item-title">${draft.title || 'Video'}</div>
+                <div class="draft-item-meta">${draft.platform || ''} • ${formatDurationDrafts(draft.duration)}</div>
+            </div>
+            <div class="draft-item-actions">
+                <button class="draft-item-btn download" data-url="${draft.url}" title="Descargar">
+                    <svg viewBox="0 0 24 24" fill="none">
+                        <path d="M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M12 3V15M12 15L7 10M12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+                <button class="draft-item-btn queue" data-url="${draft.url}" data-draft='${JSON.stringify(draft).replace(/'/g, "&#39;")}' title="Agregar a cola">
+                    <svg viewBox="0 0 24 24" fill="none">
+                        <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+                <button class="draft-item-btn remove" data-id="${draft.id}" title="Eliminar">
+                    <svg viewBox="0 0 24 24" fill="none">
+                        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    `).join('');
+
+    // Event listeners para acciones de borradores
+    elements.draftsList.querySelectorAll('.draft-item-btn.download').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const url = btn.dataset.url;
+            // Cargar y descargar el video
+            elements.urlInput.value = url;
+            state.currentUrl = url;
+
+            try {
+                const info = await fetchVideoInfo(url);
+                displayVideoInfo(info);
+                // Iniciar descarga
+                setTimeout(() => downloadWithProgress(), 300);
+            } catch (error) {
+                showError(error.message);
+            }
+        });
+    });
+
+    elements.draftsList.querySelectorAll('.draft-item-btn.queue').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const url = btn.dataset.url;
+
+            try {
+                // Obtener info y agregar a cola
+                const info = await fetchVideoInfo(url);
+                addToQueue(info, url);
+                showDownloadToast('➕ Agregado a cola', info.title.substring(0, 40));
+            } catch (error) {
+                showError(error.message);
+            }
+        });
+    });
+
+    elements.draftsList.querySelectorAll('.draft-item-btn.remove').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const id = btn.dataset.id;
+            const updatedDrafts = await window.electronAPI.removeDraft(id);
+            renderDrafts(updatedDrafts);
+        });
     });
 }
 

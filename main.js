@@ -63,6 +63,75 @@ function saveSettings(settings) {
 let settings = loadSettings();
 
 // ═══════════════════════════════════════════════════════════
+// SISTEMA DE BORRADORES (Drafts)
+// ═══════════════════════════════════════════════════════════
+
+const draftsPath = path.join(userDataPath, 'drafts.json');
+
+// Cargar borradores
+function loadDrafts() {
+    try {
+        if (fs.existsSync(draftsPath)) {
+            return JSON.parse(fs.readFileSync(draftsPath, 'utf8'));
+        }
+    } catch (e) {
+        console.error('Error cargando drafts:', e);
+    }
+    return [];
+}
+
+// Guardar borradores
+function saveDrafts(drafts) {
+    try {
+        fs.writeFileSync(draftsPath, JSON.stringify(drafts, null, 2));
+    } catch (e) {
+        console.error('Error guardando drafts:', e);
+    }
+}
+
+// Agregar video a borradores
+function addToDrafts(videoData) {
+    const drafts = loadDrafts();
+
+    // Verificar si ya existe (por URL)
+    const exists = drafts.some(d => d.url === videoData.url);
+    if (exists) {
+        console.log('Video ya existe en borradores');
+        return drafts;
+    }
+
+    // Agregar con timestamp
+    drafts.unshift({
+        ...videoData,
+        id: Date.now().toString(),
+        addedAt: new Date().toISOString()
+    });
+
+    // Limitar a 50 borradores máximo
+    if (drafts.length > 50) {
+        drafts.pop();
+    }
+
+    saveDrafts(drafts);
+    console.log('Video agregado a borradores:', videoData.title);
+    return drafts;
+}
+
+// Eliminar de borradores
+function removeFromDrafts(id) {
+    let drafts = loadDrafts();
+    drafts = drafts.filter(d => d.id !== id);
+    saveDrafts(drafts);
+    return drafts;
+}
+
+// Limpiar todos los borradores
+function clearDrafts() {
+    saveDrafts([]);
+    return [];
+}
+
+// ═══════════════════════════════════════════════════════════
 // PLATAFORMAS SOPORTADAS (para detectar links)
 // ═══════════════════════════════════════════════════════════
 
@@ -577,42 +646,51 @@ async function analyzeAndNotify(videoInfo) {
         // Cerrar notificación de análisis
         analyzingNotification.close();
 
-        // Guardar datos del video para usarlos luego
-        global.lastVideoData = {
+        // Crear objeto completo del video
+        const fullVideoData = {
             ...videoData,
             url: videoInfo.url,
             platform: videoInfo.platform
         };
 
-        // Notificación con el video analizado y acciones
+        // Guardar en borradores
+        const updatedDrafts = addToDrafts(fullVideoData);
+
+        // Notificar al frontend que hay nuevos borradores
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('drafts-updated', updatedDrafts);
+        }
+
+        // Notificación con el video analizado
         const successNotification = new Notification({
             title: `✅ ${videoData.title?.substring(0, 40) || 'Video listo'}${videoData.title?.length > 40 ? '...' : ''}`,
-            body: `${videoInfo.platform} • ${formatDuration(videoData.duration)}\nClick: Descargar | Click derecho: Cola`,
+            body: `${videoInfo.platform} • ${formatDuration(videoData.duration)}\nClick para ver opciones`,
             icon: path.join(__dirname, 'assets', 'icon.png'),
             silent: false
         });
 
-        // Click izquierdo = Descargar
+        // Click = Abrir app con video listo (sin descargar automáticamente)
         successNotification.on('click', () => {
             if (mainWindow) {
                 mainWindow.show();
                 mainWindow.focus();
-                mainWindow.webContents.send('clipboard-url-download', videoInfo.url);
+                // Enviar URL para mostrar el video listo (sin descargar)
+                mainWindow.webContents.send('clipboard-url', videoInfo.url);
             }
         });
 
         successNotification.show();
 
-        // Después de 8 segundos, cerrar la notificación automáticamente
+        // Después de 10 segundos, cerrar la notificación automáticamente
         setTimeout(() => {
             try { successNotification.close(); } catch (e) { }
-        }, 8000);
+        }, 10000);
 
     } catch (error) {
         console.error('Error analizando video:', error);
-        analyzingNotification.close();
+        try { analyzingNotification.close(); } catch (e) { }
 
-        // Notificación de error
+        // Notificación de error (NO se guarda en borradores)
         const errorNotification = new Notification({
             title: `❌ Error al analizar`,
             body: 'No se pudo obtener información del video',
@@ -776,6 +854,22 @@ ipcMain.handle('save-settings', (event, newSettings) => {
     createTray();
 
     return { success: true };
+});
+
+// ═══════════════════════════════════════════════════════════
+// IPC HANDLERS - BORRADORES (DRAFTS)
+// ═══════════════════════════════════════════════════════════
+
+ipcMain.handle('get-drafts', () => {
+    return loadDrafts();
+});
+
+ipcMain.handle('remove-draft', (event, id) => {
+    return removeFromDrafts(id);
+});
+
+ipcMain.handle('clear-drafts', () => {
+    return clearDrafts();
 });
 
 // ═══════════════════════════════════════════════════════════

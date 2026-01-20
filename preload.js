@@ -76,5 +76,29 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Guardar configuración
     saveSettings: (settings) => {
         return ipcRenderer.invoke('save-settings', settings);
+    },
+
+    // ═══════════════════════════════════════════════════════════
+    // BORRADORES (DRAFTS)
+    // ═══════════════════════════════════════════════════════════
+
+    // Obtener borradores guardados
+    getDrafts: () => {
+        return ipcRenderer.invoke('get-drafts');
+    },
+
+    // Eliminar un borrador
+    removeDraft: (id) => {
+        return ipcRenderer.invoke('remove-draft', id);
+    },
+
+    // Limpiar todos los borradores
+    clearDrafts: () => {
+        return ipcRenderer.invoke('clear-drafts');
+    },
+
+    // Recibir actualizaciones de borradores
+    onDraftsUpdated: (callback) => {
+        ipcRenderer.on('drafts-updated', (event, drafts) => callback(drafts));
     }
 });

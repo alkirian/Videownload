@@ -79,26 +79,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     },
 
     // ═══════════════════════════════════════════════════════════
-    // BORRADORES (DRAFTS)
+    // COLA DE DESCARGAS (AUTO-ADD FROM CLIPBOARD)
     // ═══════════════════════════════════════════════════════════
 
-    // Obtener borradores guardados
-    getDrafts: () => {
-        return ipcRenderer.invoke('get-drafts');
-    },
-
-    // Eliminar un borrador
-    removeDraft: (id) => {
-        return ipcRenderer.invoke('remove-draft', id);
-    },
-
-    // Limpiar todos los borradores
-    clearDrafts: () => {
-        return ipcRenderer.invoke('clear-drafts');
-    },
-
-    // Recibir actualizaciones de borradores
-    onDraftsUpdated: (callback) => {
-        ipcRenderer.on('drafts-updated', (event, drafts) => callback(drafts));
+    // Recibir video analizado para agregar a cola
+    onAddToQueue: (callback) => {
+        ipcRenderer.on('add-to-queue', (event, videoData) => callback(videoData));
     }
 });

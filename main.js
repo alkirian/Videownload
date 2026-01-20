@@ -646,45 +646,42 @@ async function analyzeAndNotify(videoInfo) {
         // Cerrar notificación de análisis
         analyzingNotification.close();
 
-        // Crear objeto completo del video
+        // Crear objeto completo del video para la cola
         const fullVideoData = {
             ...videoData,
             url: videoInfo.url,
-            platform: videoInfo.platform
+            platform: videoInfo.platform,
+            id: Date.now().toString(),
+            addedAt: new Date().toISOString()
         };
 
-        // Guardar en borradores
-        const updatedDrafts = addToDrafts(fullVideoData);
-
-        // Notificar al frontend que hay nuevos borradores
+        // Enviar video directamente a la cola del frontend
         if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('drafts-updated', updatedDrafts);
+            mainWindow.webContents.send('add-to-queue', fullVideoData);
         }
 
         // Notificación con el video analizado
         const successNotification = new Notification({
-            title: `✅ ${videoData.title?.substring(0, 40) || 'Video listo'}${videoData.title?.length > 40 ? '...' : ''}`,
-            body: `${videoInfo.platform} • ${formatDuration(videoData.duration)}\nClick para ver opciones`,
+            title: `✅ Agregado a cola`,
+            body: `${videoData.title?.substring(0, 50) || 'Video'}`,
             icon: path.join(__dirname, 'assets', 'icon.png'),
             silent: false
         });
 
-        // Click = Abrir app con video listo (sin descargar automáticamente)
+        // Click = Abrir app para ver la cola
         successNotification.on('click', () => {
             if (mainWindow) {
                 mainWindow.show();
                 mainWindow.focus();
-                // Enviar URL para mostrar el video listo (sin descargar)
-                mainWindow.webContents.send('clipboard-url', videoInfo.url);
             }
         });
 
         successNotification.show();
 
-        // Después de 10 segundos, cerrar la notificación automáticamente
+        // Después de 6 segundos, cerrar la notificación automáticamente
         setTimeout(() => {
             try { successNotification.close(); } catch (e) { }
-        }, 10000);
+        }, 6000);
 
     } catch (error) {
         console.error('Error analizando video:', error);

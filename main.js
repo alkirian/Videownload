@@ -492,21 +492,26 @@ function createTray() {
 // CLIPBOARD MONITORING
 // ═══════════════════════════════════════════════════════════
 
+let isAnalyzing = false;
+let lastAnalyzedUrl = '';
+
 function startClipboardMonitoring() {
     if (clipboardInterval) return;
 
     lastClipboardText = clipboard.readText();
 
-    clipboardInterval = setInterval(() => {
+    clipboardInterval = setInterval(async () => {
+        if (isAnalyzing) return; // No analizar mientras hay uno en progreso
+
         const currentText = clipboard.readText();
 
         if (currentText !== lastClipboardText) {
             lastClipboardText = currentText;
 
             const videoInfo = isVideoUrl(currentText);
-            if (videoInfo) {
+            if (videoInfo && videoInfo.url !== lastAnalyzedUrl) {
                 console.log('Video URL detectada:', videoInfo);
-                showVideoNotification(videoInfo);
+                await analyzeAndNotify(videoInfo);
             }
         }
     }, 1000);
@@ -523,29 +528,109 @@ function stopClipboardMonitoring() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// NATIVE NOTIFICATIONS
+// ANALYZE VIDEO & NATIVE NOTIFICATIONS
 // ═══════════════════════════════════════════════════════════
 
-function showVideoNotification(videoInfo) {
+async function analyzeAndNotify(videoInfo) {
     if (!settings.notifications) return;
 
-    const notification = new Notification({
-        title: `🎬 ${videoInfo.platform} detectado`,
-        body: 'Click para descargar este video',
+    isAnalyzing = true;
+    lastAnalyzedUrl = videoInfo.url;
+
+    // Notificación de "analizando"
+    const analyzingNotification = new Notification({
+        title: `🔍 Analizando ${videoInfo.platform}...`,
+        body: 'Obteniendo información del video',
         icon: path.join(__dirname, 'assets', 'icon.png'),
-        silent: false
+        silent: true
     });
+    analyzingNotification.show();
 
-    notification.on('click', () => {
-        if (mainWindow) {
-            mainWindow.show();
-            mainWindow.focus();
-            // Enviar URL al renderer
-            mainWindow.webContents.send('clipboard-url', videoInfo.url);
-        }
-    });
+    try {
+        // Esperar a que el servidor esté listo
+        const serverPort = global.serverPort || 3000;
 
-    notification.show();
+        // Llamar a la API para obtener info del video
+        const http = require('http');
+        const videoData = await new Promise((resolve, reject) => {
+            const req = http.get(
+                `http://localhost:${serverPort}/api/info?url=${encodeURIComponent(videoInfo.url)}`,
+                (res) => {
+                    let data = '';
+                    res.on('data', chunk => data += chunk);
+                    res.on('end', () => {
+                        try {
+                            resolve(JSON.parse(data));
+                        } catch (e) {
+                            reject(new Error('Error parsing response'));
+                        }
+                    });
+                }
+            );
+            req.on('error', reject);
+            req.setTimeout(30000, () => {
+                req.destroy();
+                reject(new Error('Timeout'));
+            });
+        });
+
+        // Cerrar notificación de análisis
+        analyzingNotification.close();
+
+        // Guardar datos del video para usarlos luego
+        global.lastVideoData = {
+            ...videoData,
+            url: videoInfo.url,
+            platform: videoInfo.platform
+        };
+
+        // Notificación con el video analizado y acciones
+        const successNotification = new Notification({
+            title: `✅ ${videoData.title?.substring(0, 40) || 'Video listo'}${videoData.title?.length > 40 ? '...' : ''}`,
+            body: `${videoInfo.platform} • ${formatDuration(videoData.duration)}\nClick: Descargar | Click derecho: Cola`,
+            icon: path.join(__dirname, 'assets', 'icon.png'),
+            silent: false
+        });
+
+        // Click izquierdo = Descargar
+        successNotification.on('click', () => {
+            if (mainWindow) {
+                mainWindow.show();
+                mainWindow.focus();
+                mainWindow.webContents.send('clipboard-url-download', videoInfo.url);
+            }
+        });
+
+        successNotification.show();
+
+        // Después de 8 segundos, cerrar la notificación automáticamente
+        setTimeout(() => {
+            try { successNotification.close(); } catch (e) { }
+        }, 8000);
+
+    } catch (error) {
+        console.error('Error analizando video:', error);
+        analyzingNotification.close();
+
+        // Notificación de error
+        const errorNotification = new Notification({
+            title: `❌ Error al analizar`,
+            body: 'No se pudo obtener información del video',
+            icon: path.join(__dirname, 'assets', 'icon.png'),
+            silent: false
+        });
+        errorNotification.show();
+    } finally {
+        isAnalyzing = false;
+    }
+}
+
+// Función auxiliar para formatear duración
+function formatDuration(seconds) {
+    if (!seconds || isNaN(seconds)) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
 // ═══════════════════════════════════════════════════════════

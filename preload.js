@@ -63,6 +63,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
         ipcRenderer.on('clipboard-url', (event, url) => callback(url));
     },
 
+    // Recibir URL para descarga directa (desde notificación)
+    onClipboardUrlDownload: (callback) => {
+        ipcRenderer.on('clipboard-url-download', (event, url) => callback(url));
+    },
+
     // Obtener configuración
     getSettings: () => {
         return ipcRenderer.invoke('get-settings');

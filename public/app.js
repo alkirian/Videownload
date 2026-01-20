@@ -1021,6 +1021,34 @@ if (isElectron) {
             setLoading(elements.fetchBtn, false);
         }
     });
+
+    // Handler para descarga directa desde notificación
+    window.electronAPI.onClipboardUrlDownload(async (url) => {
+        console.log('URL para descarga directa:', url);
+
+        // Poner la URL en el input
+        elements.urlInput.value = url;
+        state.currentUrl = url;
+
+        // Analizar y descargar automáticamente
+        clearError();
+        setLoading(elements.fetchBtn, true);
+        elements.videoPreview.classList.add('hidden');
+
+        try {
+            const info = await fetchVideoInfo(url);
+            displayVideoInfo(info);
+
+            // Iniciar descarga automáticamente
+            setTimeout(() => {
+                downloadWithProgress();
+            }, 500);
+
+        } catch (error) {
+            showError(error.message);
+            setLoading(elements.fetchBtn, false);
+        }
+    });
 }
 
 function updateFolderDisplay() {

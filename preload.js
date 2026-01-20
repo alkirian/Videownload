@@ -52,5 +52,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Recibir error de descarga
     onDownloadError: (callback) => {
         ipcRenderer.on('download-error', (event, data) => callback(data));
+    },
+
+    // ═══════════════════════════════════════════════════════════
+    // CLIPBOARD MONITORING & SETTINGS
+    // ═══════════════════════════════════════════════════════════
+
+    // Recibir URL detectada del portapapeles
+    onClipboardUrl: (callback) => {
+        ipcRenderer.on('clipboard-url', (event, url) => callback(url));
+    },
+
+    // Obtener configuración
+    getSettings: () => {
+        return ipcRenderer.invoke('get-settings');
+    },
+
+    // Guardar configuración
+    saveSettings: (settings) => {
+        return ipcRenderer.invoke('save-settings', settings);
     }
 });

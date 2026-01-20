@@ -992,6 +992,35 @@ if (isElectron) {
             }
         });
     }
+
+    // ═══════════════════════════════════════════════════════════
+    // CLIPBOARD MONITORING - Recibir URLs detectadas
+    // ═══════════════════════════════════════════════════════════
+
+    window.electronAPI.onClipboardUrl(async (url) => {
+        console.log('URL recibida del portapapeles:', url);
+
+        // Poner la URL en el input
+        elements.urlInput.value = url;
+        state.currentUrl = url;
+
+        // Analizar automáticamente
+        clearError();
+        setLoading(elements.fetchBtn, true);
+        elements.videoPreview.classList.add('hidden');
+
+        try {
+            const info = await fetchVideoInfo(url);
+            displayVideoInfo(info);
+
+            // Mostrar toast de éxito
+            showDownloadToast('🎬 Video detectado', info.title.substring(0, 50) + (info.title.length > 50 ? '...' : ''));
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            setLoading(elements.fetchBtn, false);
+        }
+    });
 }
 
 function updateFolderDisplay() {

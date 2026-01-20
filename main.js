@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, Tray, Menu, Notification, nativeImage, clipboard } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
@@ -24,6 +24,76 @@ const FFMPEG_URL = 'https://github.com/BtbN/FFmpeg-Builds/releases/download/late
 let mainWindow;
 let splashWindow;
 let serverProcess;
+let tray = null;
+let clipboardInterval = null;
+let lastClipboardText = '';
+
+// Archivo de configuración
+const settingsPath = path.join(userDataPath, 'settings.json');
+
+// Configuración por defecto
+const defaultSettings = {
+    autoStart: false,
+    startMinimized: false,
+    clipboardMonitoring: true,
+    notifications: true
+};
+
+// Cargar configuración
+function loadSettings() {
+    try {
+        if (fs.existsSync(settingsPath)) {
+            return { ...defaultSettings, ...JSON.parse(fs.readFileSync(settingsPath, 'utf8')) };
+        }
+    } catch (e) {
+        console.error('Error cargando settings:', e);
+    }
+    return defaultSettings;
+}
+
+// Guardar configuración
+function saveSettings(settings) {
+    try {
+        fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+    } catch (e) {
+        console.error('Error guardando settings:', e);
+    }
+}
+
+let settings = loadSettings();
+
+// ═══════════════════════════════════════════════════════════
+// PLATAFORMAS SOPORTADAS (para detectar links)
+// ═══════════════════════════════════════════════════════════
+
+const SUPPORTED_PLATFORMS = [
+    { name: 'YouTube', patterns: ['youtube.com/watch', 'youtu.be/', 'youtube.com/shorts'] },
+    { name: 'TikTok', patterns: ['tiktok.com/'] },
+    { name: 'Instagram', patterns: ['instagram.com/p/', 'instagram.com/reel/'] },
+    { name: 'Twitter', patterns: ['twitter.com/', 'x.com/'] },
+    { name: 'Facebook', patterns: ['facebook.com/watch', 'fb.watch'] },
+    { name: 'Vimeo', patterns: ['vimeo.com/'] },
+    { name: 'Twitch', patterns: ['twitch.tv/'] },
+    { name: 'Reddit', patterns: ['reddit.com/', 'redd.it/'] },
+    { name: 'SoundCloud', patterns: ['soundcloud.com/'] }
+];
+
+function isVideoUrl(text) {
+    if (!text || typeof text !== 'string') return null;
+    const trimmed = text.trim();
+
+    // Verificar que parece una URL
+    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) return null;
+
+    for (const platform of SUPPORTED_PLATFORMS) {
+        for (const pattern of platform.patterns) {
+            if (trimmed.includes(pattern)) {
+                return { url: trimmed, platform: platform.name };
+            }
+        }
+    }
+    return null;
+}
 
 // ═══════════════════════════════════════════════════════════
 // VENTANA DE SPLASH (Pantalla de carga)
@@ -334,9 +404,148 @@ function createMainWindow() {
         mainWindow.webContents.openDevTools();
     }
 
+    // Minimizar a tray en lugar de cerrar
+    mainWindow.on('close', (event) => {
+        if (tray && !app.isQuitting) {
+            event.preventDefault();
+            mainWindow.hide();
+            return false;
+        }
+    });
+
     mainWindow.on('closed', () => {
         mainWindow = null;
     });
+}
+
+// ═══════════════════════════════════════════════════════════
+// SYSTEM TRAY
+// ═══════════════════════════════════════════════════════════
+
+function createTray() {
+    const iconPath = path.join(__dirname, 'assets', 'icon.png');
+    const trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
+
+    tray = new Tray(trayIcon);
+    tray.setToolTip('DownloadFlow - Click para abrir');
+
+    const contextMenu = Menu.buildFromTemplate([
+        {
+            label: '📂 Abrir DownloadFlow',
+            click: () => {
+                if (mainWindow) {
+                    mainWindow.show();
+                    mainWindow.focus();
+                }
+            }
+        },
+        { type: 'separator' },
+        {
+            label: settings.clipboardMonitoring ? '✓ Monitorear Portapapeles' : '   Monitorear Portapapeles',
+            click: () => {
+                settings.clipboardMonitoring = !settings.clipboardMonitoring;
+                saveSettings(settings);
+                if (settings.clipboardMonitoring) {
+                    startClipboardMonitoring();
+                } else {
+                    stopClipboardMonitoring();
+                }
+                createTray(); // Recrear para actualizar el menú
+            }
+        },
+        {
+            label: settings.autoStart ? '✓ Iniciar con Windows' : '   Iniciar con Windows',
+            click: () => {
+                settings.autoStart = !settings.autoStart;
+                saveSettings(settings);
+                app.setLoginItemSettings({
+                    openAtLogin: settings.autoStart,
+                    args: ['--hidden']
+                });
+                createTray();
+            }
+        },
+        { type: 'separator' },
+        {
+            label: '❌ Salir',
+            click: () => {
+                app.isQuitting = true;
+                app.quit();
+            }
+        }
+    ]);
+
+    tray.setContextMenu(contextMenu);
+
+    tray.on('click', () => {
+        if (mainWindow) {
+            if (mainWindow.isVisible()) {
+                mainWindow.focus();
+            } else {
+                mainWindow.show();
+            }
+        }
+    });
+}
+
+// ═══════════════════════════════════════════════════════════
+// CLIPBOARD MONITORING
+// ═══════════════════════════════════════════════════════════
+
+function startClipboardMonitoring() {
+    if (clipboardInterval) return;
+
+    lastClipboardText = clipboard.readText();
+
+    clipboardInterval = setInterval(() => {
+        const currentText = clipboard.readText();
+
+        if (currentText !== lastClipboardText) {
+            lastClipboardText = currentText;
+
+            const videoInfo = isVideoUrl(currentText);
+            if (videoInfo) {
+                console.log('Video URL detectada:', videoInfo);
+                showVideoNotification(videoInfo);
+            }
+        }
+    }, 1000);
+
+    console.log('Clipboard monitoring iniciado');
+}
+
+function stopClipboardMonitoring() {
+    if (clipboardInterval) {
+        clearInterval(clipboardInterval);
+        clipboardInterval = null;
+        console.log('Clipboard monitoring detenido');
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+// NATIVE NOTIFICATIONS
+// ═══════════════════════════════════════════════════════════
+
+function showVideoNotification(videoInfo) {
+    if (!settings.notifications) return;
+
+    const notification = new Notification({
+        title: `🎬 ${videoInfo.platform} detectado`,
+        body: 'Click para descargar este video',
+        icon: path.join(__dirname, 'assets', 'icon.png'),
+        silent: false
+    });
+
+    notification.on('click', () => {
+        if (mainWindow) {
+            mainWindow.show();
+            mainWindow.focus();
+            // Enviar URL al renderer
+            mainWindow.webContents.send('clipboard-url', videoInfo.url);
+        }
+    });
+
+    notification.show();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -344,8 +553,13 @@ function createMainWindow() {
 // ═══════════════════════════════════════════════════════════
 
 app.whenReady().then(async () => {
-    // Mostrar splash
-    createSplashWindow();
+    // Verificar si se inició con --hidden (inicio automático)
+    const startHidden = process.argv.includes('--hidden') || settings.startMinimized;
+
+    // Mostrar splash solo si no está oculto
+    if (!startHidden) {
+        createSplashWindow();
+    }
 
     // Verificar/descargar dependencias
     updateSplashStatus('Verificando dependencias...');
@@ -366,6 +580,30 @@ app.whenReady().then(async () => {
     // Crear ventana principal
     updateSplashStatus('Cargando interfaz...');
     createMainWindow();
+
+    // Crear system tray
+    createTray();
+
+    // Iniciar monitoreo del portapapeles si está habilitado
+    if (settings.clipboardMonitoring) {
+        startClipboardMonitoring();
+    }
+
+    // Si se inició oculto, esconder la ventana después de cargar
+    if (startHidden && mainWindow) {
+        mainWindow.once('ready-to-show', () => {
+            if (splashWindow && !splashWindow.isDestroyed()) {
+                splashWindow.close();
+            }
+            // No mostrar ventana, mantener en tray
+        });
+    }
+
+    // Aplicar configuración de auto-start
+    app.setLoginItemSettings({
+        openAtLogin: settings.autoStart,
+        args: ['--hidden']
+    });
 });
 
 // ═══════════════════════════════════════════════════════════
@@ -419,12 +657,52 @@ ipcMain.handle('show-item-in-folder', (event, filePath) => {
 });
 
 // ═══════════════════════════════════════════════════════════
+// IPC HANDLERS - SETTINGS
+// ═══════════════════════════════════════════════════════════
+
+ipcMain.handle('get-settings', () => {
+    return settings;
+});
+
+ipcMain.handle('save-settings', (event, newSettings) => {
+    settings = { ...settings, ...newSettings };
+    saveSettings(settings);
+
+    // Aplicar cambios inmediatamente
+    if (newSettings.autoStart !== undefined) {
+        app.setLoginItemSettings({
+            openAtLogin: settings.autoStart,
+            args: ['--hidden']
+        });
+    }
+
+    if (newSettings.clipboardMonitoring !== undefined) {
+        if (settings.clipboardMonitoring) {
+            startClipboardMonitoring();
+        } else {
+            stopClipboardMonitoring();
+        }
+    }
+
+    // Recrear tray para reflejar cambios
+    if (tray) {
+        tray.destroy();
+    }
+    createTray();
+
+    return { success: true };
+});
+
+// ═══════════════════════════════════════════════════════════
 // CICLO DE VIDA DE LA APP
 // ═══════════════════════════════════════════════════════════
 
 app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') {
-        app.quit();
+    // No cerrar si hay tray activo
+    if (!tray) {
+        if (process.platform !== 'darwin') {
+            app.quit();
+        }
     }
 });
 
@@ -436,5 +714,6 @@ app.on('activate', () => {
 
 // Limpiar al cerrar
 app.on('before-quit', () => {
-    // El servidor se cierra automáticamente con el proceso
+    app.isQuitting = true;
+    stopClipboardMonitoring();
 });

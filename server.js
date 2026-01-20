@@ -711,8 +711,24 @@ app.get('/api/download-stream', async (req, res) => {
     };
 
     const downloadId = uuidv4();
+
+    // Decodificar y validar carpeta de destino
+    let decodedOutputDir = null;
+    if (outputDir) {
+        try {
+            decodedOutputDir = decodeURIComponent(outputDir);
+            console.log('Download-stream: outputDir recibido:', outputDir);
+            console.log('Download-stream: outputDir decodificado:', decodedOutputDir);
+            console.log('Download-stream: outputDir existe:', fs.existsSync(decodedOutputDir));
+        } catch (e) {
+            console.error('Download-stream: Error decodificando outputDir:', e);
+            decodedOutputDir = outputDir;
+        }
+    }
+
     // Usar carpeta personalizada o TEMP_DIR
-    const outputDirectory = outputDir && fs.existsSync(outputDir) ? outputDir : TEMP_DIR;
+    const outputDirectory = decodedOutputDir && fs.existsSync(decodedOutputDir) ? decodedOutputDir : TEMP_DIR;
+    console.log('Download-stream: Usando directorio:', outputDirectory);
     const outputPath = path.join(outputDirectory, downloadId);
 
     try {

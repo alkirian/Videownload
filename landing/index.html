@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Videownload - Descarga videos de YouTube, TikTok, Instagram y más</title>
+    <meta name="description"
+        content="Descarga videos de YouTube, TikTok, Instagram, Twitter y más en segundos. Gratis, rápido y sin límites.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            /* Mismos colores del software Videownload */
+            --bg-primary: #1c1c1e;
+            --bg-secondary: #232325;
+            --bg-tertiary: #2a2a2c;
+            --bg-card: #252527;
+            --bg-card-hover: #2d2d30;
+
+            --text-primary: #e8e8e8;
+            --text-secondary: rgba(232, 232, 232, 0.65);
+            --text-muted: rgba(232, 232, 232, 0.4);
+
+            /* Verde salvia - el mismo del software */
+            --accent-primary: #8a9a7b;
+            --accent-hover: #9dab8f;
+            --accent-muted: rgba(138, 154, 123, 0.15);
+
+            --glass-border: rgba(255, 255, 255, 0.06);
+
+            --radius-sm: 4px;
+            --radius-md: 6px;
+            --radius-lg: 8px;
+        }
+
+        body {
+            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* Header */
+        header {
+            padding: 24px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: var(--accent-muted);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+
+        .github-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: color 150ms ease;
+        }
+
+        .github-link:hover {
+            color: var(--accent-primary);
+        }
+
+        .github-link svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        /* Hero */
+        .hero {
+            padding: 80px 0 60px;
+            text-align: center;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--accent-muted);
+            border: 1px solid var(--glass-border);
+            border-radius: 100px;
+            padding: 6px 14px;
+            font-size: 0.8rem;
+            color: var(--accent-primary);
+            margin-bottom: 28px;
+        }
+
+        h1 {
+            font-size: clamp(2rem, 5vw, 2.75rem);
+            font-weight: 700;
+            line-height: 1.2;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+
+        .hero-subtitle {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            max-width: 520px;
+            margin: 0 auto 40px;
+        }
+
+        /* CTA Button */
+        .cta-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .cta-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--accent-primary);
+            color: var(--bg-primary);
+            font-size: 1rem;
+            font-weight: 600;
+            padding: 14px 28px;
+            border-radius: var(--radius-md);
+            text-decoration: none;
+            transition: all 150ms ease;
+        }
+
+        .cta-button:hover {
+            background: var(--accent-hover);
+        }
+
+        .cta-button svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .cta-info {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        /* Platforms */
+        .platforms {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin-top: 48px;
+            flex-wrap: wrap;
+        }
+
+        .platform {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .platform svg {
+            width: 20px;
+            height: 20px;
+            opacity: 0.7;
+        }
+
+        /* Features */
+        .features {
+            padding: 60px 0;
+            border-top: 1px solid var(--glass-border);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+        }
+
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            transition: border-color 150ms ease;
+        }
+
+        .feature-card:hover {
+            border-color: rgba(138, 154, 123, 0.3);
+        }
+
+        .feature-icon {
+            font-size: 1.25rem;
+            margin-bottom: 12px;
+        }
+
+        .feature-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .feature-desc {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        /* Steps */
+        .steps-section {
+            padding: 60px 0;
+            border-top: 1px solid var(--glass-border);
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .steps {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            flex-wrap: wrap;
+        }
+
+        .step {
+            text-align: center;
+            max-width: 200px;
+        }
+
+        .step-number {
+            width: 40px;
+            height: 40px;
+            background: var(--accent-muted);
+            border: 1px solid var(--glass-border);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--accent-primary);
+            margin: 0 auto 16px;
+        }
+
+        .step-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .step-desc {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        /* Footer */
+        footer {
+            padding: 32px 0;
+            text-align: center;
+            border-top: 1px solid var(--glass-border);
+        }
+
+        .footer-text {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .footer-text a {
+            color: var(--accent-primary);
+            text-decoration: none;
+        }
+
+        .footer-text a:hover {
+            text-decoration: underline;
+        }
+
+        /* Mobile */
+        @media (max-width: 640px) {
+            .hero {
+                padding: 60px 0 40px;
+            }
+
+            .platforms {
+                gap: 16px;
+            }
+
+            .steps {
+                gap: 24px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <div class="logo-icon">⬇️</div>
+                <span>Videownload</span>
+            </div>
+            <a href="https://github.com/alkirian/Videownload" class="github-link" target="_blank">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path
+                        d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+                </svg>
+                GitHub
+            </a>
+        </header>
+
+        <main>
+            <section class="hero">
+                <div class="badge">
+                    ✨ Gratis para Windows
+                </div>
+
+                <h1>Descarga videos en segundos</h1>
+
+                <p class="hero-subtitle">
+                    Copia un link de YouTube, TikTok, Instagram o Twitter y Videownload lo descarga automáticamente.
+                </p>
+
+                <div class="cta-container">
+                    <a href="https://github.com/alkirian/Videownload/releases/latest/download/Videownload-Setup-1.0.4.exe"
+                        class="cta-button">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15" />
+                            <path d="M7 10L12 15L17 10" />
+                            <path d="M12 15V3" />
+                        </svg>
+                        Descargar
+                    </a>
+                    <span class="cta-info">Windows 10/11 · 74 MB · v1.0.4</span>
+                </div>
+
+                <div class="platforms">
+                    <div class="platform">
+                        <svg viewBox="0 0 24 24">
+                            <path fill="currentColor"
+                                d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z" />
+                        </svg>
+                        YouTube
+                    </div>
+                    <div class="platform">
+                        <svg viewBox="0 0 24 24">
+                            <path fill="currentColor"
+                                d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z" />
+                        </svg>
+                        TikTok
+                    </div>
+                    <div class="platform">
+                        <svg viewBox="0 0 24 24">
+                            <path fill="currentColor"
+                                d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" />
+                        </svg>
+                        Instagram
+                    </div>
+                    <div class="platform">
+                        <svg viewBox="0 0 24 24">
+                            <path fill="currentColor"
+                                d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                        </svg>
+                        X / Twitter
+                    </div>
+                </div>
+            </section>
+
+            <section class="features">
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">📋</div>
+                        <h3 class="feature-title">Detección automática</h3>
+                        <p class="feature-desc">Copia cualquier link y Videownload lo detecta. Sin pegar nada
+                            manualmente.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">⚡</div>
+                        <h3 class="feature-title">Un click</h3>
+                        <p class="feature-desc">Aparece una notificación, click y se descarga. Sin pasos intermedios.
+                        </p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🎬</div>
+                        <h3 class="feature-title">Múltiples calidades</h3>
+                        <p class="feature-desc">Desde 360p hasta 1080p. También puedes extraer solo el audio.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">✂️</div>
+                        <h3 class="feature-title">Recorta videos</h3>
+                        <p class="feature-desc">Descarga solo la parte que necesitas con precisión de segundos.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">📥</div>
+                        <h3 class="feature-title">Cola de descargas</h3>
+                        <p class="feature-desc">Agrega múltiples videos y descárgalos todos de una vez.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🔄</div>
+                        <h3 class="feature-title">Auto-actualización</h3>
+                        <p class="feature-desc">Recibe nuevas versiones automáticamente sin descargar de nuevo.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="steps-section">
+                <h2 class="section-title">¿Cómo funciona?</h2>
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <h3 class="step-title">Instala</h3>
+                        <p class="step-desc">Descarga e instala en 2 minutos</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <h3 class="step-title">Copia un link</h3>
+                        <p class="step-desc">De cualquier video que quieras</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <h3 class="step-title">¡Listo!</h3>
+                        <p class="step-desc">Click en la notificación y descarga</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p class="footer-text">
+                Hecho con ❤️ · <a href="https://github.com/alkirian/Videownload" target="_blank">Ver en GitHub</a>
+            </p>
+        </footer>
+    </div>
+</body>
+
+</html>

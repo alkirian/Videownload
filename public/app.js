@@ -920,35 +920,46 @@ function hideDownloadToast() {
 // FILE SYSTEM ACCESS API (Selector de carpeta)
 // ═══════════════════════════════════════════════════════════
 
-// Verificar si el navegador soporta la API
-const supportsFileSystemAccess = 'showDirectoryPicker' in window;
-
-// Handler para seleccionar carpeta
+// Handler para seleccionar carpeta - usa API de Electron si está disponible
 if (elements.folderPickerBtn) {
     elements.folderPickerBtn.addEventListener('click', async () => {
-        if (!supportsFileSystemAccess) {
-            alert('Tu navegador no soporta esta función. Usa Chrome o Edge.');
-            return;
-        }
-
-        try {
-            const handle = await window.showDirectoryPicker({
-                mode: 'readwrite'
-            });
-
-            state.downloadFolderHandle = handle;
-            state.downloadFolderName = handle.name;
-
-            // Actualizar UI
-            elements.folderPath.textContent = `📁 ${handle.name}`;
-            elements.folderPickerBtn.classList.add('active');
-
-            // Guardar nombre en localStorage (no podemos guardar el handle)
-            localStorage.setItem('downloadFolderName', handle.name);
-
-        } catch (err) {
-            // Usuario canceló la selección
-            console.log('Selección de carpeta cancelada');
+        // En Electron, usar la API nativa
+        if (window.electronAPI && window.electronAPI.selectFolder) {
+            try {
+                const result = await window.electronAPI.selectFolder();
+                if (result && result.success) {
+                    state.downloadPath = result.path;
+                    state.downloadPathName = result.name;
+                    // Exponer ruta para otros scripts
+                    window.currentDownloadPath = result.path;
+                    // Actualizar display
+                    const folderStatusValue = document.getElementById('folderStatusValue');
+                    if (folderStatusValue) {
+                        folderStatusValue.textContent = result.name || 'Downloads';
+                    }
+                    console.log('Carpeta seleccionada:', result.path);
+                }
+            } catch (err) {
+                console.error('Error seleccionando carpeta:', err);
+            }
+        } else {
+            // Fallback para navegador web
+            if ('showDirectoryPicker' in window) {
+                try {
+                    const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                    state.downloadFolderHandle = handle;
+                    state.downloadFolderName = handle.name;
+                    if (elements.folderPath) {
+                        elements.folderPath.textContent = `📁 ${handle.name}`;
+                    }
+                    elements.folderPickerBtn.classList.add('active');
+                    localStorage.setItem('downloadFolderName', handle.name);
+                } catch (err) {
+                    console.log('Selección de carpeta cancelada');
+                }
+            } else {
+                alert('Tu navegador no soporta esta función.');
+            }
         }
     });
 }

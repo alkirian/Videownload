@@ -405,15 +405,16 @@
         // Handler para botón abrir carpeta de descargas
         document.getElementById('openFolderBtn')?.addEventListener('click', async () => {
             if (window.electronAPI && window.electronAPI.openPath) {
-                const path = document.getElementById('folderStatusValue')?.textContent;
-                if (path && path !== 'Sin configurar') {
-                    await window.electronAPI.openPath(path);
-                } else {
-                    // Abrir carpeta de descargas por defecto
-                    const defaultPath = await window.electronAPI.getDefaultDownloadPath();
-                    if (defaultPath) {
-                        await window.electronAPI.openPath(defaultPath);
-                    }
+                // Intentar usar la ruta guardada en state (accedida via window)
+                let pathToOpen = window.currentDownloadPath;
+
+                // Si no hay ruta guardada, usar la ruta por defecto
+                if (!pathToOpen) {
+                    pathToOpen = await window.electronAPI.getDefaultDownloadPath();
+                }
+
+                if (pathToOpen) {
+                    await window.electronAPI.openPath(pathToOpen);
                 }
             }
         });

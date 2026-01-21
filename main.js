@@ -1,4 +1,5 @@
 const { app, BrowserWindow, dialog, ipcMain, Tray, Menu, Notification, nativeImage, clipboard } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
@@ -36,7 +37,9 @@ const defaultSettings = {
     autoStart: false,
     startMinimized: false,
     clipboardMonitoring: true,
-    notifications: true
+    notifications: true,
+    closeAction: 'ask',  // 'ask', 'tray', 'quit'
+    askOnClose: true     // Si preguntar al cerrar
 };
 
 // Cargar configuración
@@ -138,12 +141,14 @@ function clearDrafts() {
 const SUPPORTED_PLATFORMS = [
     { name: 'YouTube', patterns: ['youtube.com/watch', 'youtu.be/', 'youtube.com/shorts'] },
     { name: 'TikTok', patterns: ['tiktok.com/'] },
-    { name: 'Instagram', patterns: ['instagram.com/p/', 'instagram.com/reel/'] },
+    { name: 'Instagram', patterns: ['instagram.com/p/', 'instagram.com/reel/', 'instagram.com/stories/'] },
     { name: 'Twitter', patterns: ['twitter.com/', 'x.com/'] },
-    { name: 'Facebook', patterns: ['facebook.com/watch', 'fb.watch'] },
+    { name: 'Facebook', patterns: ['facebook.com/watch', 'fb.watch', 'facebook.com/reel'] },
     { name: 'Vimeo', patterns: ['vimeo.com/'] },
     { name: 'Twitch', patterns: ['twitch.tv/'] },
     { name: 'Reddit', patterns: ['reddit.com/', 'redd.it/'] },
+    { name: 'Pinterest', patterns: ['pinterest.com/pin/', 'pin.it/'] },
+    { name: 'Dailymotion', patterns: ['dailymotion.com/', 'dai.ly/'] },
     { name: 'SoundCloud', patterns: ['soundcloud.com/'] }
 ];
 
@@ -473,13 +478,55 @@ function createMainWindow() {
         mainWindow.webContents.openDevTools();
     }
 
-    // Minimizar a tray en lugar de cerrar
-    mainWindow.on('close', (event) => {
-        if (tray && !app.isQuitting) {
-            event.preventDefault();
-            mainWindow.hide();
-            return false;
+    // Manejo del cierre con diálogo de confirmación
+    mainWindow.on('close', async (event) => {
+        if (app.isQuitting) return; // Permitir cierre si ya se decidió salir
+
+        event.preventDefault();
+
+        // Si ya tiene una preferencia guardada, usarla
+        if (!settings.askOnClose) {
+            if (settings.closeAction === 'tray') {
+                mainWindow.hide();
+            } else if (settings.closeAction === 'quit') {
+                app.isQuitting = true;
+                app.quit();
+            }
+            return;
         }
+
+        // Mostrar diálogo de confirmación
+        const { response, checkboxChecked } = await dialog.showMessageBox(mainWindow, {
+            type: 'question',
+            buttons: ['Minimizar a bandeja', 'Cerrar aplicación', 'Cancelar'],
+            defaultId: 0,
+            cancelId: 2,
+            title: 'Cerrar Videownload',
+            message: '¿Qué deseas hacer?',
+            detail: 'Puedes minimizar a la bandeja del sistema para seguir detectando videos, o cerrar completamente la aplicación.',
+            checkboxLabel: 'Recordar mi elección',
+            checkboxChecked: false
+        });
+
+        if (response === 0) {
+            // Minimizar a bandeja
+            if (checkboxChecked) {
+                settings.askOnClose = false;
+                settings.closeAction = 'tray';
+                saveSettings(settings);
+            }
+            mainWindow.hide();
+        } else if (response === 1) {
+            // Cerrar aplicación
+            if (checkboxChecked) {
+                settings.askOnClose = false;
+                settings.closeAction = 'quit';
+                saveSettings(settings);
+            }
+            app.isQuitting = true;
+            app.quit();
+        }
+        // Si response === 2 (Cancelar), no hacer nada
     });
 
     mainWindow.on('closed', () => {
@@ -492,15 +539,41 @@ function createMainWindow() {
 // ═══════════════════════════════════════════════════════════
 
 function createTray() {
-    const iconPath = path.join(__dirname, 'assets', 'icon.png');
-    const trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
+    // Crear icono de tray simple y visible (16x16 con flecha de descarga)
+    // Este es un PNG 16x16 con fondo teal y flecha blanca de descarga
+    const trayIconBase64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA3klEQVQ4T6WTwQ3CMAyG/wRGgBFgBBiBjkBHgBFgBBiBjgAbwAawAYxAN6hJZMWhSd9hysn2Z9v5E9FxU+R4ACvFlkNEzAE8AVwAvEPLM4APgCMAT1fMzFuPZOYFAL8xszeotwSwcS+8jK4B7IjoPVS5CWDv+mQPyPY54CMic4fIzJYueBD4mJnXoRmBW6zJnxg1i+f3RqLWLIi2zjPw3OoFVaJTB+SoJVqJKjKziRjsInIGkJqY+SoGiAxiReQ1lG/0FZK0JyKdZ4C+0QOQHxL1V3MZBGJUiSZU9DtxfAB1E8Q4AXyhdgAAAABJRU5ErkJggg==';
+
+    let trayIcon;
+    try {
+        trayIcon = nativeImage.createFromDataURL(trayIconBase64);
+
+        // Intentar cargar el icono personalizado si existe
+        let iconPath = path.join(__dirname, 'assets', 'icon.png');
+        if (isPackaged) {
+            iconPath = path.join(process.resourcesPath, 'app.asar', 'assets', 'icon.png');
+        }
+
+        const customIcon = nativeImage.createFromPath(iconPath);
+        if (!customIcon.isEmpty()) {
+            // Solo usar el icono personalizado si carga correctamente y se ve bien
+            const resized = customIcon.resize({ width: 16, height: 16 });
+            // Verificar que el icono tiene píxeles visibles
+            if (!resized.isEmpty()) {
+                trayIcon = resized;
+            }
+        }
+    } catch (err) {
+        console.error('Error cargando icono del tray:', err);
+        // Mantener el icono base64 de fallback
+        trayIcon = nativeImage.createFromDataURL(trayIconBase64);
+    }
 
     tray = new Tray(trayIcon);
-    tray.setToolTip('DownloadFlow - Click para abrir');
+    tray.setToolTip('Videownload - Click para abrir');
 
     const contextMenu = Menu.buildFromTemplate([
         {
-            label: '📂 Abrir DownloadFlow',
+            label: '📂 Abrir Videownload',
             click: () => {
                 if (mainWindow) {
                     mainWindow.show();
@@ -600,6 +673,99 @@ function stopClipboardMonitoring() {
 // ANALYZE VIDEO & NATIVE NOTIFICATIONS
 // ═══════════════════════════════════════════════════════════
 
+// Función para generar Toast XML para Windows (notificaciones avanzadas)
+function generateToastXml(title, platform) {
+    // Fallback: dejar que Electron use su propio formato
+    return undefined;
+}
+
+// Función para iniciar descarga directa desde la notificación (sin abrir UI)
+async function startDirectDownload(videoData) {
+    try {
+        const http = require('http');
+        const serverPort = global.serverPort || 3000;
+
+        // Obtener la carpeta de descargas
+        const downloadFolder = settings.downloadFolder || app.getPath('downloads');
+
+        // Mostrar notificación de inicio de descarga
+        const downloadingNotification = new Notification({
+            title: '⬇️ Descargando...',
+            body: `${videoData.title?.substring(0, 40) || 'Video'}`,
+            icon: path.join(__dirname, 'assets', 'icon.png'),
+            silent: true
+        });
+        downloadingNotification.show();
+
+        // Preparar parámetros de descarga
+        const downloadParams = new URLSearchParams({
+            url: videoData.url,
+            quality: videoData.quality || 1080,
+            audioOnly: videoData.audioOnly ? 'true' : 'false',
+            outputDir: downloadFolder
+        });
+
+        // Iniciar la descarga via API
+        const downloadUrl = `http://localhost:${serverPort}/api/download?${downloadParams.toString()}`;
+
+        // Hacer la petición de descarga
+        const downloadRequest = http.get(downloadUrl, (res) => {
+            let lastProgress = 0;
+
+            res.on('data', (chunk) => {
+                const text = chunk.toString();
+                // Parsear eventos SSE
+                const lines = text.split('\n');
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const data = JSON.parse(line.substring(6));
+                            if (data.progress && data.progress > lastProgress + 20) {
+                                lastProgress = data.progress;
+                                downloadingNotification.title = `⬇️ ${Math.round(data.progress)}%`;
+                            }
+                            if (data.status === 'completed') {
+                                downloadingNotification.close();
+
+                                // Notificación de éxito
+                                const doneNotification = new Notification({
+                                    title: '✅ Descarga completada',
+                                    body: `${videoData.title?.substring(0, 40) || 'Video'}`,
+                                    icon: path.join(__dirname, 'assets', 'icon.png'),
+                                    silent: false
+                                });
+
+                                doneNotification.on('click', () => {
+                                    // Abrir la carpeta de descargas
+                                    require('electron').shell.openPath(downloadFolder);
+                                });
+
+                                doneNotification.show();
+                                setTimeout(() => { try { doneNotification.close(); } catch (e) { } }, 5000);
+                            }
+                        } catch (e) { /* ignore parse errors */ }
+                    }
+                }
+            });
+        });
+
+        downloadRequest.on('error', (err) => {
+            console.error('Error en descarga directa:', err);
+            downloadingNotification.close();
+
+            const errorNotification = new Notification({
+                title: '❌ Error en descarga',
+                body: 'No se pudo completar la descarga',
+                icon: path.join(__dirname, 'assets', 'icon.png')
+            });
+            errorNotification.show();
+        });
+
+    } catch (error) {
+        console.error('Error iniciando descarga directa:', error);
+    }
+}
+
 async function analyzeAndNotify(videoInfo) {
     if (!settings.notifications) return;
 
@@ -652,36 +818,57 @@ async function analyzeAndNotify(videoInfo) {
             url: videoInfo.url,
             platform: videoInfo.platform,
             id: Date.now().toString(),
-            addedAt: new Date().toISOString()
+            addedAt: new Date().toISOString(),
+            quality: 1080, // Calidad por defecto
+            audioOnly: false
         };
+
+        // Guardar referencia para descarga directa desde notificación
+        global.pendingDownload = fullVideoData;
 
         // Enviar video directamente a la cola del frontend
         if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('add-to-queue', fullVideoData);
         }
 
-        // Notificación con el video analizado
+        // Notificación con botones de acción
         const successNotification = new Notification({
-            title: `✅ Agregado a cola`,
-            body: `${videoData.title?.substring(0, 50) || 'Video'}`,
+            title: `✅ ${videoData.title?.substring(0, 40) || 'Video'}`,
+            body: `${videoInfo.platform} • Click para descargar`,
             icon: path.join(__dirname, 'assets', 'icon.png'),
-            silent: false
+            silent: false,
+            actions: [
+                { type: 'button', text: '⬇️ Descargar' },
+                { type: 'button', text: '📂 Abrir App' }
+            ],
+            toastXml: generateToastXml(videoData.title, videoInfo.platform)
         });
 
-        // Click = Abrir app para ver la cola
-        successNotification.on('click', () => {
-            if (mainWindow) {
-                mainWindow.show();
-                mainWindow.focus();
+        // Handler para acciones de los botones
+        successNotification.on('action', (event, index) => {
+            if (index === 0) {
+                // Botón "Descargar" - Iniciar descarga directa
+                startDirectDownload(fullVideoData);
+            } else if (index === 1) {
+                // Botón "Abrir App"
+                if (mainWindow) {
+                    mainWindow.show();
+                    mainWindow.focus();
+                }
             }
+        });
+
+        // Click en la notificación = Descargar directamente
+        successNotification.on('click', () => {
+            startDirectDownload(fullVideoData);
         });
 
         successNotification.show();
 
-        // Después de 6 segundos, cerrar la notificación automáticamente
+        // Cerrar automáticamente después de 8 segundos
         setTimeout(() => {
             try { successNotification.close(); } catch (e) { }
-        }, 6000);
+        }, 8000);
 
     } catch (error) {
         console.error('Error analizando video:', error);
@@ -867,6 +1054,108 @@ ipcMain.handle('remove-draft', (event, id) => {
 
 ipcMain.handle('clear-drafts', () => {
     return clearDrafts();
+});
+
+// ═══════════════════════════════════════════════════════════
+// AUTO-UPDATER (Actualizaciones Automáticas via GitHub)
+// ═══════════════════════════════════════════════════════════
+
+function setupAutoUpdater() {
+    // Solo activar en modo empaquetado
+    if (!isPackaged) {
+        console.log('Auto-updater desactivado en desarrollo');
+        return;
+    }
+
+    // Configurar autoUpdater
+    autoUpdater.autoDownload = false; // Preguntar antes de descargar
+    autoUpdater.autoInstallOnAppQuit = true;
+
+    // Evento: hay una nueva versión disponible
+    autoUpdater.on('update-available', (info) => {
+        console.log('Nueva versión disponible:', info.version);
+
+        const notification = new Notification({
+            title: '🆕 Nueva versión disponible',
+            body: `Videownload ${info.version} está lista para descargar`,
+            icon: path.join(__dirname, 'assets', 'icon.png')
+        });
+
+        notification.on('click', async () => {
+            const { response } = await dialog.showMessageBox(mainWindow, {
+                type: 'info',
+                buttons: ['Descargar ahora', 'Después'],
+                title: 'Actualización disponible',
+                message: `Nueva versión ${info.version}`,
+                detail: 'Hay una nueva versión de Videownload disponible. ¿Deseas descargarla ahora?'
+            });
+
+            if (response === 0) {
+                autoUpdater.downloadUpdate();
+            }
+        });
+
+        notification.show();
+    });
+
+    // Evento: descarga en progreso
+    autoUpdater.on('download-progress', (progress) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.setProgressBar(progress.percent / 100);
+        }
+    });
+
+    // Evento: actualización descargada
+    autoUpdater.on('update-downloaded', async (info) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.setProgressBar(-1); // Quitar barra de progreso
+        }
+
+        const notification = new Notification({
+            title: '✅ Actualización lista',
+            body: 'Click para instalar y reiniciar',
+            icon: path.join(__dirname, 'assets', 'icon.png')
+        });
+
+        notification.on('click', () => {
+            autoUpdater.quitAndInstall();
+        });
+
+        notification.show();
+
+        // También mostrar diálogo
+        const { response } = await dialog.showMessageBox(mainWindow, {
+            type: 'info',
+            buttons: ['Reiniciar ahora', 'Después'],
+            title: 'Actualización descargada',
+            message: `Videownload ${info.version} está lista`,
+            detail: 'La actualización se instalará al reiniciar la aplicación.'
+        });
+
+        if (response === 0) {
+            autoUpdater.quitAndInstall();
+        }
+    });
+
+    // Evento: error
+    autoUpdater.on('error', (err) => {
+        console.error('Error en auto-updater:', err);
+    });
+
+    // Chequear actualizaciones cada hora
+    setInterval(() => {
+        autoUpdater.checkForUpdates();
+    }, 60 * 60 * 1000);
+
+    // Chequear al iniciar (después de 10 segundos)
+    setTimeout(() => {
+        autoUpdater.checkForUpdates();
+    }, 10000);
+}
+
+// Inicializar auto-updater cuando la app esté lista
+app.on('ready', () => {
+    setupAutoUpdater();
 });
 
 // ═══════════════════════════════════════════════════════════

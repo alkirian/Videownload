@@ -1,24 +1,24 @@
 # Dependencies
 node_modules/
 
-# Build output
+# Build outputs
 dist/
+out/
 
-# Temporary files
+# Temp files
 temp/
 *.log
-
-# Binaries (yt-dlp, ffmpeg)
-bin/
 
 # OS files
 .DS_Store
 Thumbs.db
 
 # IDE
-.vscode/
 .idea/
+.vscode/
 
-# Environment
-.env
-.env.local
+# Downloaded binaries
+bin/
+
+# Lock files (optional)
+package-lock.json

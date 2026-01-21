@@ -216,6 +216,13 @@ app.use(express.json());
 const APP_PATH = process.env.APP_PATH || __dirname;
 
 // Servir archivos estáticos desde la ruta correcta
+// Deshabilitar caché en desarrollo para asegurar archivos actualizados
+app.use((req, res, next) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    next();
+});
 app.use(express.static(path.join(APP_PATH, 'public')));
 
 
@@ -447,13 +454,12 @@ app.post('/api/download', async (req, res) => {
                 }
             }
 
-            // Si hay recorte de tiempo
+            // Si hay recorte de tiempo - OPTIMIZADO: sin re-encoding para mayor velocidad
             if (startTime !== undefined && endTime !== undefined && startTime !== endTime) {
-                const duration = endTime - startTime;
-                args.push(
-                    '--download-sections', `*${startTime}-${endTime}`,
-                    '--force-keyframes-at-cuts'
-                );
+                // --download-sections descarga solo el fragmento seleccionado
+                // NO usamos --force-keyframes-at-cuts para evitar re-encoding lento
+                // El corte puede ser levemente impreciso (hasta el keyframe más cercano)
+                args.push('--download-sections', `*${startTime}-${endTime}`);
             }
 
             // Nombre de archivo: ID_Titulo.ext (el ID permite encontrarlo, el título para el usuario)
@@ -597,10 +603,12 @@ app.get('/api/download-direct', async (req, res) => {
         const args = [
             '--no-playlist',
             '--ffmpeg-location', FFMPEG_DIR,
-            // Optimizaciones de velocidad
-            '--concurrent-fragments', '4',  // Descargar 4 fragmentos a la vez
-            '--buffer-size', '16K',         // Buffer más grande
-            '--no-check-certificate'        // Saltar verificación SSL
+            // Optimizaciones de velocidad máxima
+            '--concurrent-fragments', '8',   // Descargar 8 fragmentos en paralelo
+            '--buffer-size', '64K',          // Buffer más grande
+            '--http-chunk-size', '10M',      // Chunks de 10MB
+            '--throttled-rate', '100K',      // Evitar throttling de YouTube
+            '--no-check-certificate'         // Saltar verificación SSL
         ];
 
         if (audioOnly === 'true') {
@@ -734,14 +742,17 @@ app.get('/api/download-stream', async (req, res) => {
     try {
         sendEvent('start', { message: 'Iniciando descarga...' });
 
-        // Construir argumentos de yt-dlp
+        // Construir argumentos de yt-dlp con optimizaciones de velocidad
         const args = [
             '--no-playlist',
             '--ffmpeg-location', FFMPEG_DIR,
             '--newline',  // Importante para parsear progreso
             '--progress-template', '%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s',
-            '--concurrent-fragments', '4',
-            '--buffer-size', '16K',
+            // Optimizaciones de velocidad máxima
+            '--concurrent-fragments', '8',   // Descargar 8 fragmentos en paralelo
+            '--buffer-size', '64K',          // Buffer más grande
+            '--http-chunk-size', '10M',      // Chunks de 10MB
+            '--throttled-rate', '100K',      // Evitar throttling de YouTube
             '--no-check-certificate'
         ];
 
@@ -911,8 +922,11 @@ app.post('/api/download-batch', async (req, res) => {
             const args = [
                 '--no-playlist',
                 '--ffmpeg-location', FFMPEG_DIR,
-                '--concurrent-fragments', '4',
-                '--buffer-size', '16K',
+                // Optimizaciones de velocidad máxima
+                '--concurrent-fragments', '8',
+                '--buffer-size', '64K',
+                '--http-chunk-size', '10M',
+                '--throttled-rate', '100K',
                 '--no-check-certificate'
             ];
 
@@ -945,7 +959,7 @@ app.post('/api/download-batch', async (req, res) => {
             console.log(`ZIP creado: ${archive.pointer()} bytes`);
 
             // Enviar ZIP al cliente
-            res.download(zipPath, 'DownloadFlow_Videos.zip', (err) => {
+            res.download(zipPath, 'Videownload_Videos.zip', (err) => {
                 // Limpiar archivos después
                 setTimeout(() => {
                     try {

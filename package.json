@@ -1,9 +1,9 @@
 {
-  "name": "downloadflow",
+  "name": "videownload",
   "version": "1.0.0",
   "description": "Aplicación de escritorio para descargar videos de YouTube, TikTok, Instagram y Twitter",
   "main": "main.js",
-  "author": "DownloadFlow",
+  "author": "Videownload",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
@@ -17,6 +17,7 @@
   "dependencies": {
     "archiver": "^7.0.1",
     "cors": "^2.8.5",
+    "electron-updater": "^6.7.3",
     "express": "^4.18.2",
     "uuid": "^9.0.0"
   },
@@ -25,9 +26,9 @@
     "electron-builder": "^24.9.1"
   },
   "build": {
-    "appId": "com.downloadflow.app",
-    "productName": "DownloadFlow",
-    "copyright": "Copyright © 2024 DownloadFlow",
+    "appId": "com.videownload.app",
+    "productName": "Videownload",
+    "copyright": "Copyright © 2024 Videownload",
     "directories": {
       "output": "dist",
       "buildResources": "assets"
@@ -50,7 +51,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "DownloadFlow"
+      "shortcutName": "Videownload"
     },
     "files": [
       "**/*",
@@ -58,8 +59,13 @@
       "!dist/**",
       "!bin/**",
       "!.git/**",
-      "!*.md"
+      "*.md"
     ],
+    "publish": {
+      "provider": "github",
+      "owner": "alkirian",
+      "repo": "Videownload"
+    },
     "extraResources": []
   },
   "keywords": [

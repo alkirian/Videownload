@@ -73,8 +73,10 @@ const elements = {
     addPlaylistBtn: document.getElementById('addPlaylistBtn'),
     closePlaylistModal: document.getElementById('closePlaylistModal'),
     // Folder picker
+    folderPickerSection: document.getElementById('folderPickerSection'),
     folderPickerBtn: document.getElementById('folderPickerBtn'),
-    folderPath: document.getElementById('folderPath'),
+    folderStatusValue: document.getElementById('folderStatusValue'),
+    folderBtnText: document.getElementById('folderBtnText'),
     // Modal Éxito
     successModal: document.getElementById('successModal'),
     successFileName: document.getElementById('successFileName'),
@@ -92,7 +94,13 @@ const elements = {
     historySection: document.getElementById('historySection'),
     historyList: document.getElementById('historyList'),
     toggleHistoryBtn: document.getElementById('toggleHistoryBtn'),
-    clearHistoryBtn: document.getElementById('clearHistoryBtn')
+    clearHistoryBtn: document.getElementById('clearHistoryBtn'),
+    // Empty State y Opciones Avanzadas
+    emptyState: document.getElementById('emptyState'),
+    advancedOptions: document.getElementById('advancedOptions'),
+    advancedOptionsToggle: document.getElementById('advancedOptionsToggle'),
+    advancedOptionsContent: document.getElementById('advancedOptionsContent'),
+    optionsSummary: document.getElementById('optionsSummary')
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -121,7 +129,10 @@ function setLoading(button, loading) {
     button.disabled = loading;
     if (button === elements.fetchBtn) {
         button.classList.toggle('loading', loading);
-        button.querySelector('span').textContent = loading ? 'Analizando...' : 'Analizar';
+        const span = button.querySelector('span');
+        if (span) {
+            span.textContent = loading ? 'Analizando...' : 'Analizar';
+        }
     }
 }
 
@@ -169,6 +180,13 @@ async function detectPlaylist(url) {
 // ═══════════════════════════════════════════════════════════
 
 function addToQueue(videoInfo, url) {
+    // Verificar si el link ya está en la cola
+    const isDuplicate = state.queue.some(item => item.url === url);
+    if (isDuplicate) {
+        showDownloadToast('⚠️ Video duplicado', 'Este video ya está en la cola');
+        return false;
+    }
+
     const queueItem = {
         id: Date.now().toString(),
         url: url,
@@ -187,6 +205,7 @@ function addToQueue(videoInfo, url) {
     state.queue.push(queueItem);
     updateQueueUI();
     showQueueSection();
+    return true;
 }
 
 function removeFromQueue(id) {
@@ -197,8 +216,31 @@ function removeFromQueue(id) {
     }
 }
 
+// Guardar cambios del item actualmente en edición
+function saveCurrentEdit() {
+    if (!state.editingQueueItemId) return;
+
+    const item = state.queue.find(i => i.id === state.editingQueueItemId);
+    if (!item) return;
+
+    // Actualizar el item con los valores actuales del estado
+    item.audioOnly = state.audioOnly;
+    item.quality = state.selectedQuality;
+    item.trimEnabled = state.trimEnabled;
+    item.startTime = state.startTime;
+    item.endTime = state.endTime;
+
+    // Actualizar UI de la cola
+    updateQueueUI();
+}
+
 // Editar item de la cola - carga el video para modificar parámetros
 function editQueueItem(id) {
+    // Primero guardar cambios del item que estábamos editando
+    if (state.editingQueueItemId && state.editingQueueItemId !== id) {
+        saveCurrentEdit();
+    }
+
     const item = state.queue.find(i => i.id === id);
     if (!item) return;
 
@@ -232,6 +274,18 @@ function editQueueItem(id) {
         elements.videoToggle.classList.add('active');
         elements.audioToggle.classList.remove('active');
         elements.qualityCard.style.display = 'block';
+
+        // Renderizar calidades disponibles si no hay botones
+        if (elements.qualitySelector.children.length === 0) {
+            renderQualityButtons([1080, 720, 480, 360]);
+        }
+
+        // Marcar la calidad del item como activa
+        if (item.quality) {
+            document.querySelectorAll('.quality-btn').forEach(btn => {
+                btn.classList.toggle('active', parseInt(btn.dataset.quality) === item.quality);
+            });
+        }
     }
 
     // Actualizar UI de recorte
@@ -243,16 +297,15 @@ function editQueueItem(id) {
     elements.videoPreview.classList.remove('hidden');
     elements.thumbnail.src = item.thumbnail;
     elements.videoTitle.textContent = item.title;
-    elements.videoDuration.textContent = formatDuration(item.duration);
+    elements.durationBadge.textContent = formatDuration(item.duration);
 
-    // Cambiar texto del botón de agregar a "Guardar cambios"
-    elements.addToQueueBtn.innerHTML = '<span>💾 Guardar cambios</span>';
-    elements.addToQueueBtn.classList.add('editing');
+    // Marcar visualmente el item que estamos editando
+    document.querySelectorAll('.queue-item').forEach(el => {
+        el.classList.toggle('editing', el.dataset.id === id);
+    });
 
     // Scroll hacia arriba para ver el editor
     window.scrollTo({ top: 0, behavior: 'smooth' });
-
-    showDownloadToast('Editando video', 'Modifica los parámetros y presiona "Guardar cambios"');
 }
 
 // Función para actualizar posiciones de handles
@@ -298,41 +351,39 @@ function updateQueueUI() {
     state.queue.forEach(item => {
         const div = document.createElement('div');
         div.className = `queue-item ${item.status}`;
+        div.dataset.id = item.id;
 
-        // Mostrar info de recorte si está habilitado
-        const trimInfo = item.trimEnabled
-            ? ` • ✂️ ${formatDuration(item.startTime)}-${formatDuration(item.endTime)}`
+        // Badges de configuración
+        const qualityBadge = item.audioOnly
+            ? '<span class="queue-badge audio">MP3</span>'
+            : `<span class="queue-badge quality">${item.quality || 1080}p</span>`;
+
+        const trimBadge = item.trimEnabled
+            ? `<span class="queue-badge trim">✂️ ${formatDuration(item.startTime)}-${formatDuration(item.endTime)}</span>`
             : '';
 
         div.innerHTML = `
             <img class="queue-item-thumb" src="${item.thumbnail}" alt="">
             <div class="queue-item-info">
                 <div class="queue-item-title">${item.title}</div>
-                <div class="queue-item-meta">
-                    ${item.audioOnly ? 'Audio MP3' : item.quality + 'p MP4'}${trimInfo}
+                <div class="queue-item-badges">
+                    ${qualityBadge}${trimBadge}
                 </div>
             </div>
             ${item.status === 'downloading' ? `
-                <div class="queue-item-status">
+                <div class="queue-item-status downloading">
                     <div class="loader-ring" style="width:14px;height:14px;border-width:2px;"></div>
-                    Descargando...
                 </div>
             ` : item.status === 'completed' ? `
-                <div class="queue-item-status">✓ Completado</div>
+                <div class="queue-item-status completed">✓</div>
+            ` : item.status === 'error' ? `
+                <div class="queue-item-status error">✗</div>
             ` : `
-                <div class="queue-item-actions">
-                    <button class="queue-item-edit" data-id="${item.id}" title="Editar">
-                        <svg viewBox="0 0 24 24" fill="none">
-                            <path d="M11 4H4C3.44772 4 3 4.44772 3 5V20C3 20.5523 3.44772 21 4 21H19C19.5523 21 20 20.5523 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                            <path d="M18.5 2.5L21.5 5.5L12 15H9V12L18.5 2.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                    </button>
-                    <button class="queue-item-remove" data-id="${item.id}" title="Eliminar">
-                        <svg viewBox="0 0 24 24" fill="none">
-                            <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                    </button>
-                </div>
+                <button class="queue-item-remove" data-id="${item.id}" title="Eliminar">
+                    <svg viewBox="0 0 24 24" fill="none">
+                        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
             `}
         `;
         elements.queueList.appendChild(div);
@@ -347,18 +398,42 @@ function updateQueueUI() {
         });
     });
 
-    // Event listeners para editar items
-    document.querySelectorAll('.queue-item-edit').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const id = e.currentTarget.dataset.id;
+    // Click en cualquier parte del item para editar (excepto si está procesando)
+    document.querySelectorAll('.queue-item.pending').forEach(item => {
+        item.addEventListener('click', (e) => {
+            // No activar si clickeó en botón de eliminar
+            if (e.target.closest('.queue-item-remove')) return;
+            const id = item.dataset.id;
             editQueueItem(id);
         });
+        item.style.cursor = 'pointer';
     });
+
+    // Mostrar mensaje vacío si no hay items
+    if (state.queue.length === 0) {
+        elements.queueList.innerHTML = `
+            <div class="queue-empty">
+                <p>Sin videos en cola</p>
+                <span>Agrega videos para descargar</span>
+            </div>
+        `;
+    }
 }
 
 async function processQueue() {
     if (state.isProcessingQueue || state.queue.length === 0) return;
+
+    // Si no hay carpeta configurada en Electron, pedir que seleccione una
+    if (isElectron && !state.downloadPath) {
+        const result = await window.electronAPI.selectFolder();
+        if (!result.success) {
+            showDownloadToast('⚠️ Selecciona una carpeta', 'Debes elegir dónde guardar los videos');
+            return;
+        }
+        state.downloadPath = result.path;
+        state.downloadPathName = result.name;
+        updateFolderDisplay();
+    }
 
     state.isProcessingQueue = true;
 
@@ -370,36 +445,66 @@ async function processQueue() {
         updateQueueUI();
 
         try {
-            const { downloadId } = await startDownload({
+            // Usar download-stream con la carpeta configurada
+            const params = new URLSearchParams({
                 url: item.url,
-                audioOnly: item.audioOnly,
-                quality: item.quality
+                audioOnly: (item.audioOnly || false).toString()
             });
 
-            // Esperar a que termine
-            let completed = false;
-            while (!completed) {
-                await new Promise(r => setTimeout(r, 1000));
-                const progress = await checkProgress(downloadId);
+            if (!item.audioOnly && item.quality) {
+                params.set('quality', item.quality.toString());
+            }
 
-                if (progress.status === 'completed') {
-                    completed = true;
+            // Agregar trim si está configurado
+            if (item.trimEnabled && item.startTime !== undefined && item.endTime !== undefined) {
+                params.set('startTime', Math.floor(item.startTime).toString());
+                params.set('endTime', Math.floor(item.endTime).toString());
+            }
+
+            // Agregar carpeta de destino
+            if (state.downloadPath) {
+                params.set('outputDir', state.downloadPath);
+            }
+
+            const downloadUrl = `${API_BASE}/api/download-stream?${params.toString()}`;
+
+            // Descargar con SSE
+            await new Promise((resolve, reject) => {
+                const eventSource = new EventSource(downloadUrl);
+
+                eventSource.addEventListener('complete', (e) => {
+                    const data = JSON.parse(e.data);
+                    eventSource.close();
                     item.status = 'completed';
                     updateQueueUI();
 
-                    // Descargar archivo
-                    const link = document.createElement('a');
-                    link.href = `${API_BASE}/api/file/${downloadId}`;
-                    link.download = progress.filename || 'video';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                } else if (progress.status === 'error') {
+                    // Agregar al historial
+                    addToHistory({
+                        filePath: data.filePath,
+                        fileName: data.fileName,
+                        fileSize: data.fileSize,
+                        outputDir: data.outputDir,
+                        timestamp: Date.now()
+                    });
+
+                    resolve();
+                });
+
+                eventSource.addEventListener('error', (e) => {
+                    eventSource.close();
                     item.status = 'error';
                     updateQueueUI();
-                    completed = true;
-                }
-            }
+                    resolve(); // Continuar con el siguiente
+                });
+
+                eventSource.onerror = () => {
+                    eventSource.close();
+                    item.status = 'error';
+                    updateQueueUI();
+                    resolve();
+                };
+            });
+
         } catch (error) {
             item.status = 'error';
             updateQueueUI();
@@ -407,6 +512,7 @@ async function processQueue() {
     }
 
     state.isProcessingQueue = false;
+    showDownloadToast('✓ Cola completada', 'Todos los videos han sido descargados');
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -432,8 +538,30 @@ function displayVideoInfo(info) {
     state.endTime = info.duration;
     state.startTime = 0;
 
-    // Actualizar preview
-    elements.thumbnail.src = info.thumbnail;
+    // Actualizar preview con fallback para thumbnails vacíos o que fallan al cargar
+    const placeholderSvg = 'data:image/svg+xml,' + encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180">
+            <defs>
+                <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#1a1a2e"/>
+                    <stop offset="100%" style="stop-color:#16213e"/>
+                </linearGradient>
+            </defs>
+            <rect width="320" height="180" fill="url(#grad)"/>
+            <text x="160" y="90" text-anchor="middle" dominant-baseline="middle" font-size="48">${info.platformIcon || '🎬'}</text>
+        </svg>
+    `);
+
+    // Handler para cuando la imagen no carga (URLs expiradas de Instagram, etc.)
+    elements.thumbnail.onerror = () => {
+        elements.thumbnail.src = placeholderSvg;
+    };
+
+    if (info.thumbnail) {
+        elements.thumbnail.src = info.thumbnail;
+    } else {
+        elements.thumbnail.src = placeholderSvg;
+    }
     elements.videoTitle.textContent = info.title;
     elements.videoUploader.textContent = info.uploader || 'Desconocido';
     elements.durationBadge.textContent = formatDuration(info.duration);
@@ -459,8 +587,14 @@ function displayVideoInfo(info) {
     updateTimelineDisplay();
     generateTimelineTicks();
 
-    // Mostrar preview
+    // Ocultar empty state y mostrar preview
+    if (elements.emptyState) {
+        elements.emptyState.classList.add('hidden');
+    }
     elements.videoPreview.classList.remove('hidden');
+
+    // Actualizar resumen de opciones
+    updateOptionsSummary();
 }
 
 function renderQualityButtons(qualities) {
@@ -468,16 +602,26 @@ function renderQualityButtons(qualities) {
 
     const defaultQualities = qualities.length > 0 ? qualities : [1080, 720, 480, 360];
 
-    defaultQualities.forEach((quality, index) => {
+    // Encontrar la calidad por defecto: 1080p o la más alta disponible que sea <= 1080
+    let defaultQuality = defaultQualities.find(q => q === 1080);
+    if (!defaultQuality) {
+        // Si no hay 1080, buscar la más alta que sea <= 1080
+        const qualitiesUnder1080 = defaultQualities.filter(q => q <= 1080);
+        defaultQuality = qualitiesUnder1080.length > 0
+            ? qualitiesUnder1080[0]  // La primera (más alta) que sea <= 1080
+            : defaultQualities[defaultQualities.length - 1]; // Si todas son > 1080, la más baja
+    }
+
+    defaultQualities.forEach((quality) => {
         const btn = document.createElement('button');
-        btn.className = 'quality-btn' + (index === 0 ? ' active' : '');
+        btn.className = 'quality-btn' + (quality === defaultQuality ? ' active' : '');
         btn.textContent = `${quality}p`;
         btn.dataset.quality = quality;
         btn.addEventListener('click', () => selectQuality(quality));
         elements.qualitySelector.appendChild(btn);
     });
 
-    state.selectedQuality = defaultQualities[0];
+    state.selectedQuality = defaultQuality;
 }
 
 function selectQuality(quality) {
@@ -485,6 +629,8 @@ function selectQuality(quality) {
     document.querySelectorAll('.quality-btn').forEach(btn => {
         btn.classList.toggle('active', parseInt(btn.dataset.quality) === quality);
     });
+    saveCurrentEdit(); // Auto-guardar cambios
+    updateOptionsSummary();
 }
 
 function updateTimelineDisplay() {
@@ -511,6 +657,24 @@ function generateTimelineTicks() {
         tick.textContent = formatDuration(interval * i);
         elements.timelineTicks.appendChild(tick);
     }
+}
+
+// Actualiza el resumen de opciones mostrado en el header colapsable
+function updateOptionsSummary() {
+    if (!elements.optionsSummary) return;
+
+    const format = state.audioOnly ? 'Audio' : 'Video';
+    const quality = state.audioOnly ? 'MP3' : (state.selectedQuality ? `${state.selectedQuality}p` : 'Auto');
+    const trim = state.trimEnabled ? ` · ✂️` : '';
+
+    elements.optionsSummary.textContent = `${format} · ${quality}${trim}`;
+}
+
+// Toggle de opciones avanzadas
+if (elements.advancedOptionsToggle) {
+    elements.advancedOptionsToggle.addEventListener('click', () => {
+        elements.advancedOptions.classList.toggle('expanded');
+    });
 }
 
 function updateProgressUI(progress, status) {
@@ -614,7 +778,9 @@ elements.videoToggle.addEventListener('click', () => {
     state.audioOnly = false;
     elements.videoToggle.classList.add('active');
     elements.audioToggle.classList.remove('active');
-    elements.qualityCard.style.display = 'block';
+    elements.qualityCard.style.display = 'flex';
+    saveCurrentEdit(); // Auto-guardar cambios
+    updateOptionsSummary();
 });
 
 elements.audioToggle.addEventListener('click', () => {
@@ -622,12 +788,23 @@ elements.audioToggle.addEventListener('click', () => {
     elements.audioToggle.classList.add('active');
     elements.videoToggle.classList.remove('active');
     elements.qualityCard.style.display = 'none';
+    saveCurrentEdit(); // Auto-guardar cambios
+    updateOptionsSummary();
 });
 
 // Trim toggle
 elements.trimEnabled.addEventListener('change', (e) => {
     state.trimEnabled = e.target.checked;
     elements.timelineContainer.classList.toggle('disabled', !e.target.checked);
+
+    // Mostrar/ocultar advertencia de tiempo extra
+    const trimWarning = document.getElementById('trimWarning');
+    if (trimWarning) {
+        trimWarning.classList.toggle('hidden', !e.target.checked);
+    }
+
+    saveCurrentEdit(); // Auto-guardar cambios
+    updateOptionsSummary();
 });
 
 // Timeline handles
@@ -662,6 +839,7 @@ function handleMouseUp() {
     activeHandle = null;
     document.removeEventListener('mousemove', handleMouseMove);
     document.removeEventListener('mouseup', handleMouseUp);
+    saveCurrentEdit(); // Auto-guardar cambios de recorte
 }
 
 elements.handleStart.addEventListener('mousedown', handleMouseDown);
@@ -851,58 +1029,13 @@ elements.clearQueueBtn.addEventListener('click', () => {
     clearQueue();
 });
 
-// Descargar todo
+// Descargar todo - siempre descarga individualmente (sin ZIP)
 elements.downloadAllBtn.addEventListener('click', async () => {
     const pendingVideos = state.queue.filter(v => v.status === 'pending');
     if (pendingVideos.length === 0) return;
 
-    // Si son 3 o más, descargar como ZIP
-    if (pendingVideos.length >= 3) {
-        // Toast PERSISTENTE - no desaparece hasta que termine
-        showDownloadToast('Preparando ZIP...', `Descargando ${pendingVideos.length} videos y empaquetando`, true);
-
-        try {
-            const response = await fetch(`${API_BASE}/api/download-batch`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    videos: pendingVideos.map(v => ({
-                        url: v.url,
-                        quality: v.quality,
-                        audioOnly: v.audioOnly
-                    }))
-                })
-            });
-
-            if (!response.ok) throw new Error('Error en batch download');
-
-            // Descargar el ZIP
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = 'DownloadFlow_Videos.zip';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            window.URL.revokeObjectURL(url);
-
-            // Marcar todos como completados
-            pendingVideos.forEach(v => v.status = 'completed');
-            updateQueueUI();
-
-            // Ocultar toast persistente
-            hideDownloadToast();
-
-        } catch (error) {
-            console.error('Error en batch download:', error);
-            hideDownloadToast();
-            showDownloadToast('Error', 'No se pudo crear el ZIP');
-        }
-    } else {
-        // Si son pocos, descargar individualmente
-        processQueue();
-    }
+    // Descargar todos los videos individualmente
+    processQueue();
 });
 
 // ═══════════════════════════════════════════════════════════
@@ -970,12 +1103,13 @@ const isElectron = typeof window.electronAPI !== 'undefined';
 
 // Inicializar carpeta por defecto si estamos en Electron
 if (isElectron) {
-    // Mostrar botón de selección de carpeta
-    if (elements.folderPickerBtn) {
-        elements.folderPickerBtn.style.display = 'flex';
+    // Mostrar sección de selección de carpeta
+    if (elements.folderPickerSection) {
+        elements.folderPickerSection.style.display = 'flex';
+        elements.folderPickerSection.classList.add('not-configured');
     }
 
-    // Obtener carpeta de descargas por defecto
+    // Obtener carpeta de descargas por defecto (null = preguntará cada vez)
     window.electronAPI.getDefaultDownloadPath().then(path => {
         state.downloadPath = path;
         updateFolderDisplay();
@@ -1066,10 +1200,21 @@ if (isElectron) {
 }
 
 function updateFolderDisplay() {
-    if (elements.folderPath && state.downloadPath) {
+    if (!elements.folderPickerSection) return;
+
+    if (state.downloadPath) {
+        // Carpeta configurada
         const name = state.downloadPathName || state.downloadPath.split(/[\\/]/).pop();
-        elements.folderPath.textContent = `📁 ${name}`;
-        elements.folderPickerBtn?.classList.add('active');
+        elements.folderPickerSection.classList.remove('not-configured');
+        elements.folderPickerSection.classList.add('configured');
+        if (elements.folderStatusValue) elements.folderStatusValue.textContent = name;
+        if (elements.folderBtnText) elements.folderBtnText.textContent = 'Cambiar';
+    } else {
+        // Sin carpeta - preguntará cada vez
+        elements.folderPickerSection.classList.remove('configured');
+        elements.folderPickerSection.classList.add('not-configured');
+        if (elements.folderStatusValue) elements.folderStatusValue.textContent = 'Preguntará cada descarga';
+        if (elements.folderBtnText) elements.folderBtnText.textContent = 'Elegir';
     }
 }
 
@@ -1079,6 +1224,18 @@ function updateFolderDisplay() {
 
 async function downloadWithProgress() {
     if (!state.videoInfo) return;
+
+    // Si no hay carpeta configurada en Electron, pedir que seleccione una
+    if (isElectron && !state.downloadPath) {
+        const result = await window.electronAPI.selectFolder();
+        if (!result.success) {
+            showDownloadToast('⚠️ Selecciona una carpeta', 'Debes elegir dónde guardar el video');
+            return;
+        }
+        state.downloadPath = result.path;
+        state.downloadPathName = result.name;
+        updateFolderDisplay();
+    }
 
     const url = elements.urlInput.value.trim();
 
@@ -1097,8 +1254,8 @@ async function downloadWithProgress() {
         params.set('endTime', Math.floor(state.endTime).toString());
     }
 
-    // Agregar carpeta de destino si estamos en Electron
-    if (isElectron && state.downloadPath) {
+    // Agregar carpeta de destino
+    if (state.downloadPath) {
         params.set('outputDir', state.downloadPath);
     }
 

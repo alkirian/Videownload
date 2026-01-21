@@ -173,6 +173,23 @@
             color: var(--text-muted);
         }
 
+        /* DEMO FLOW INLINE - En el hero */
+        .demo-flow-inline {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin: 32px 0 16px;
+            flex-wrap: wrap;
+        }
+
+        .demo-tagline {
+            color: var(--accent-primary);
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 32px;
+        }
+
         /* Platforms */
         .platforms {
             display: flex;
@@ -369,6 +386,25 @@
                     Copia un link de YouTube, TikTok, Instagram o Twitter y Videownload lo descarga automáticamente.
                 </p>
 
+                <!-- DEMO FLOW - Visible inmediatamente -->
+                <div class="demo-flow-inline">
+                    <div class="demo-box">
+                        <div class="demo-emoji">📋</div>
+                        <div class="demo-label">Copia link</div>
+                    </div>
+                    <span class="demo-arrow">→</span>
+                    <div class="demo-box">
+                        <div class="demo-emoji">🔔</div>
+                        <div class="demo-label">Notificación</div>
+                    </div>
+                    <span class="demo-arrow">→</span>
+                    <div class="demo-box">
+                        <div class="demo-emoji">✅</div>
+                        <div class="demo-label">¡Descargado!</div>
+                    </div>
+                </div>
+                <p class="demo-tagline">⚡ Sin pegar links · Sin abrir ventanas · Sin configurar nada</p>
+
                 <div class="cta-container">
                     <a href="https://github.com/alkirian/Videownload/releases/latest/download/Videownload-Setup-1.0.4.exe"
                         class="cta-button">
@@ -377,7 +413,7 @@
                             <path d="M7 10L12 15L17 10" />
                             <path d="M12 15V3" />
                         </svg>
-                        Descargar
+                        Descargar Gratis
                     </a>
                     <span class="cta-info">Windows 10/11 · 74 MB · v1.0.4</span>
                 </div>
@@ -451,33 +487,6 @@
                 </div>
             </section>
 
-            <section class="demo-section">
-                <h2 class="section-title">Así de fácil</h2>
-                <div class="demo-flow">
-                    <div class="demo-step">
-                        <div class="demo-box">
-                            <div class="demo-emoji">📋</div>
-                            <div class="demo-label">Copia link</div>
-                        </div>
-                    </div>
-                    <span class="demo-arrow">→</span>
-                    <div class="demo-step">
-                        <div class="demo-box">
-                            <div class="demo-emoji">🔔</div>
-                            <div class="demo-label">Notificación</div>
-                        </div>
-                    </div>
-                    <span class="demo-arrow">→</span>
-                    <div class="demo-step">
-                        <div class="demo-box">
-                            <div class="demo-emoji">✅</div>
-                            <div class="demo-label">¡Descargado!</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="demo-highlight">
-                    ⚡ Sin pegar links · Sin abrir ventanas · Sin configurar nada
-                </div>
             </section>
         </main>
 

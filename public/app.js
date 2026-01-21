@@ -1115,18 +1115,6 @@ if (isElectron) {
         updateFolderDisplay();
     });
 
-    // Handler para seleccionar carpeta
-    if (elements.folderPickerBtn) {
-        elements.folderPickerBtn.addEventListener('click', async () => {
-            const result = await window.electronAPI.selectFolder();
-            if (result.success) {
-                state.downloadPath = result.path;
-                state.downloadPathName = result.name;
-                updateFolderDisplay();
-            }
-        });
-    }
-
     // ═══════════════════════════════════════════════════════════
     // CLIPBOARD MONITORING - Recibir URLs detectadas
     // ═══════════════════════════════════════════════════════════

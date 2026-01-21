@@ -303,6 +303,24 @@ app.get('/api/info', async (req, res) => {
 
         const info = JSON.parse(output);
 
+        // Verificar si es una transmisión en vivo
+        if (info.is_live || info.live_status === 'is_live') {
+            return res.status(400).json({
+                error: '🔴 Este video es una transmisión EN VIVO. No se pueden descargar transmisiones en vivo.',
+                isLive: true,
+                platform: platform
+            });
+        }
+
+        // Verificar si es un video que aún no ha terminado (premiere)
+        if (info.live_status === 'is_upcoming') {
+            return res.status(400).json({
+                error: '⏳ Este video es un ESTRENO programado. Espera a que comience y termine para descargarlo.',
+                isUpcoming: true,
+                platform: platform
+            });
+        }
+
         // Extraer formatos disponibles
         const formats = (info.formats || [])
             .filter(f => f.vcodec !== 'none' || f.acodec !== 'none')

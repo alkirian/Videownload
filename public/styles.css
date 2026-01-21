@@ -2281,3 +2281,123 @@ body {
     width: 12px;
     height: 12px;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   COMPACT LAYOUT - Top Input & Minimal Empty State
+   ═══════════════════════════════════════════════════════════ */
+
+/* Input siempre visible arriba */
+.top-input-section {
+    margin-bottom: var(--space-lg);
+}
+
+.top-input-section .input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    background: var(--bg-secondary);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-sm) var(--space-md);
+}
+
+.input-icon {
+    font-size: 1.1rem;
+    opacity: 0.6;
+}
+
+.top-input-section .url-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    outline: none;
+}
+
+.top-input-section .url-input::placeholder {
+    color: var(--text-muted);
+}
+
+.top-input-section .fetch-btn {
+    background: var(--accent-primary);
+    border: none;
+    border-radius: var(--radius-md);
+    color: #fff;
+    padding: var(--space-sm) var(--space-md);
+    cursor: pointer;
+    transition: var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.top-input-section .fetch-btn:hover {
+    background: var(--accent-hover);
+}
+
+.top-input-section .fetch-icon {
+    width: 18px;
+    height: 18px;
+}
+
+/* Empty State Minimal - Solo un hint pequeño */
+.empty-state-minimal {
+    display: flex;
+    justify-content: center;
+    padding: var(--space-3xl) var(--space-lg);
+}
+
+.empty-hint {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.hint-icon {
+    font-size: 1.2rem;
+    opacity: 0.5;
+}
+
+.hint-text {
+    opacity: 0.7;
+}
+
+/* Cuando hay video, ocultar el empty state */
+.empty-state-minimal.hidden {
+    display: none;
+}
+
+/* Folder picker buttons container */
+.folder-buttons {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.folder-open-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.folder-open-btn:hover {
+    background: var(--accent-muted);
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+}
+
+.folder-open-btn svg {
+    width: 16px;
+    height: 16px;
+}

@@ -238,9 +238,9 @@
             line-height: 1.5;
         }
 
-        /* Steps */
-        .steps-section {
-            padding: 60px 0;
+        /* DEMO FLOW - Visual 3 pasos */
+        .demo-section {
+            padding: 48px 0;
             border-top: 1px solid var(--glass-border);
         }
 
@@ -251,42 +251,56 @@
             margin-bottom: 40px;
         }
 
-        .steps {
+        .demo-flow {
             display: flex;
             justify-content: center;
-            gap: 40px;
+            align-items: center;
+            gap: 8px;
             flex-wrap: wrap;
         }
 
-        .step {
-            text-align: center;
-            max-width: 200px;
-        }
-
-        .step-number {
-            width: 40px;
-            height: 40px;
-            background: var(--accent-muted);
-            border: 1px solid var(--glass-border);
-            border-radius: 50%;
+        .demo-step {
             display: flex;
             align-items: center;
-            justify-content: center;
-            font-size: 1rem;
+            gap: 12px;
+        }
+
+        .demo-box {
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            padding: 20px 24px;
+            text-align: center;
+            min-width: 140px;
+        }
+
+        .demo-box:hover {
+            border-color: rgba(138, 154, 123, 0.4);
+        }
+
+        .demo-emoji {
+            font-size: 2rem;
+            margin-bottom: 8px;
+        }
+
+        .demo-label {
             font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .demo-arrow {
+            font-size: 1.5rem;
             color: var(--accent-primary);
-            margin: 0 auto 16px;
         }
 
-        .step-title {
-            font-size: 1rem;
-            font-weight: 600;
-            margin-bottom: 6px;
-        }
-
-        .step-desc {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
+        .demo-highlight {
+            text-align: center;
+            margin-top: 32px;
+            padding: 16px;
+            background: var(--accent-muted);
+            border-radius: var(--radius-md);
+            color: var(--accent-primary);
+            font-weight: 500;
         }
 
         /* Footer */
@@ -437,24 +451,32 @@
                 </div>
             </section>
 
-            <section class="steps-section">
-                <h2 class="section-title">¿Cómo funciona?</h2>
-                <div class="steps">
-                    <div class="step">
-                        <div class="step-number">1</div>
-                        <h3 class="step-title">Instala</h3>
-                        <p class="step-desc">Descarga e instala en 2 minutos</p>
+            <section class="demo-section">
+                <h2 class="section-title">Así de fácil</h2>
+                <div class="demo-flow">
+                    <div class="demo-step">
+                        <div class="demo-box">
+                            <div class="demo-emoji">📋</div>
+                            <div class="demo-label">Copia link</div>
+                        </div>
                     </div>
-                    <div class="step">
-                        <div class="step-number">2</div>
-                        <h3 class="step-title">Copia un link</h3>
-                        <p class="step-desc">De cualquier video que quieras</p>
+                    <span class="demo-arrow">→</span>
+                    <div class="demo-step">
+                        <div class="demo-box">
+                            <div class="demo-emoji">🔔</div>
+                            <div class="demo-label">Notificación</div>
+                        </div>
                     </div>
-                    <div class="step">
-                        <div class="step-number">3</div>
-                        <h3 class="step-title">¡Listo!</h3>
-                        <p class="step-desc">Click en la notificación y descarga</p>
+                    <span class="demo-arrow">→</span>
+                    <div class="demo-step">
+                        <div class="demo-box">
+                            <div class="demo-emoji">✅</div>
+                            <div class="demo-label">¡Descargado!</div>
+                        </div>
                     </div>
+                </div>
+                <div class="demo-highlight">
+                    ⚡ Sin pegar links · Sin abrir ventanas · Sin configurar nada
                 </div>
             </section>
         </main>

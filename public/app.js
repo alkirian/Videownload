@@ -183,6 +183,13 @@ async function detectPlaylist(url) {
 // ═══════════════════════════════════════════════════════════
 
 function addToQueue(videoInfo, url) {
+    // Debug: Log what we receive
+    console.log('addToQueue called with:', {
+        title: videoInfo?.title,
+        thumbnail: videoInfo?.thumbnail,
+        url: url
+    });
+
     // Verificar si el link ya está en la cola
     const isDuplicate = state.queue.some(item => item.url === url);
     if (isDuplicate) {
@@ -193,17 +200,20 @@ function addToQueue(videoInfo, url) {
     const queueItem = {
         id: Date.now().toString(),
         url: url,
-        title: videoInfo.title,
-        thumbnail: videoInfo.thumbnail,
-        duration: videoInfo.duration,
-        quality: state.audioOnly ? null : state.selectedQuality,
-        audioOnly: state.audioOnly,
+        title: videoInfo?.title || 'Video sin título',
+        thumbnail: videoInfo?.thumbnail || null,
+        duration: videoInfo?.duration || 0,
+        platformIcon: videoInfo?.platformIcon || '🎬',
+        quality: state.audioOnly ? null : (state.selectedQuality || 1080),
+        audioOnly: state.audioOnly || false,
         // Guardar recorte
-        trimEnabled: state.trimEnabled,
+        trimEnabled: state.trimEnabled || false,
         startTime: state.trimEnabled ? state.startTime : 0,
-        endTime: state.trimEnabled ? state.endTime : videoInfo.duration,
+        endTime: state.trimEnabled ? state.endTime : (videoInfo?.duration || 0),
         status: 'pending'
     };
+
+    console.log('Queue item created:', queueItem);
 
     state.queue.push(queueItem);
     updateQueueUI();

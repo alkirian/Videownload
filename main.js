@@ -141,7 +141,7 @@ function clearDrafts() {
 const SUPPORTED_PLATFORMS = [
     { name: 'YouTube', patterns: ['youtube.com/watch', 'youtu.be/', 'youtube.com/shorts'] },
     { name: 'TikTok', patterns: ['tiktok.com/'] },
-    { name: 'Instagram', patterns: ['instagram.com/p/', 'instagram.com/reel/', 'instagram.com/stories/'] },
+    { name: 'Instagram', patterns: ['instagram.com/p/', 'instagram.com/reel/', 'instagram.com/reels/', 'instagram.com/stories/', 'instagram.com/tv/', 'instagr.am/'] },
     { name: 'Twitter', patterns: ['twitter.com/', 'x.com/'] },
     { name: 'Facebook', patterns: ['facebook.com/watch', 'fb.watch', 'facebook.com/reel'] },
     { name: 'Vimeo', patterns: ['vimeo.com/'] },

@@ -39,6 +39,13 @@
                 <span class="logo-text">Videownload</span>
             </div>
 
+            <button id="openHistoryBtn" class="header-icon-btn" title="Historial">
+                <svg viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
+                    <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                </svg>
+            </button>
+
             <!-- Selector de Carpeta (solo visible en Electron) -->
             <div id="folderPickerSection" class="folder-picker-section" style="display: none;">
                 <div class="folder-status" id="folderStatus">
@@ -365,35 +372,39 @@
         </div>
     </div>
 
-    <!-- Sección de Historial -->
-    <section id="historySection" class="history-section hidden">
-        <div class="history-header">
-            <h3>
-                <svg viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
-                    <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                </svg>
-                Historial de descargas
-            </h3>
-            <button id="toggleHistoryBtn" class="toggle-history-btn">
-                <svg viewBox="0 0 24 24" fill="none">
-                    <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round" />
-                </svg>
-            </button>
+    <!-- Modal de Historial -->
+    <div id="historyModal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content modal-history">
+            <div class="modal-header">
+                <h3>
+                    <svg viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
+                        <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                    Historial
+                </h3>
+                <div class="header-actions">
+                    <button id="clearHistoryBtn" class="clear-history-icon-btn hidden" title="Limpiar historial">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path
+                                d="M19 7L18.1327 19.1425C18.0579 20.1891 17.187 21 16.1378 21H7.86224C6.81296 21 5.94208 20.1891 5.86732 19.1425L5 7M10 11V17M14 11V17M15 7V4C15 3.44772 14.5523 3 14 3H10C9.44772 3 9 3.44772 9 4V7M4 7H20"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </button>
+                    <button class="modal-close" id="closeHistoryModal">&times;</button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div id="historyList" class="history-list">
+                    <!-- Items del historial se agregan dinámicamente -->
+                </div>
+                <div id="historyEmptyState" class="history-empty hidden">
+                    <p>No hay descargas recientes</p>
+                </div>
+            </div>
         </div>
-        <div id="historyList" class="history-list">
-            <!-- Items del historial se agregan dinámicamente -->
-        </div>
-        <button id="clearHistoryBtn" class="clear-history-btn hidden">
-            <svg viewBox="0 0 24 24" fill="none">
-                <path
-                    d="M19 7L18.1327 19.1425C18.0579 20.1891 17.187 21 16.1378 21H7.86224C6.81296 21 5.94208 20.1891 5.86732 19.1425L5 7M10 11V17M14 11V17M15 7V4C15 3.44772 14.5523 3 14 3H10C9.44772 3 9 3.44772 9 4V7M4 7H20"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-            Limpiar historial
-        </button>
-    </section>
+    </div>
 
     <!-- Footer -->
     <footer class="footer">

@@ -393,6 +393,50 @@ body {
     background: var(--bg-card-hover);
 }
 
+/* Toggle Slider - Custom checkbox switch */
+.toggle-option-sidebar input[type="checkbox"] {
+    display: none;
+}
+
+.toggle-slider {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    background: var(--bg-primary);
+    border-radius: 12px;
+    border: 1px solid var(--glass-border);
+    transition: background var(--transition-fast);
+    flex-shrink: 0;
+}
+
+.toggle-slider::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    background: var(--text-muted);
+    border-radius: 50%;
+    transition: transform var(--transition-fast), background var(--transition-fast);
+}
+
+.toggle-option-sidebar input[type="checkbox"]:checked+.toggle-slider {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+}
+
+.toggle-option-sidebar input[type="checkbox"]:checked+.toggle-slider::before {
+    transform: translateX(20px);
+    background: white;
+}
+
+.toggle-label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+
 .add-btn-sidebar,
 .download-btn-sidebar {
     width: 100%;

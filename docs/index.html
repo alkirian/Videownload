@@ -9,7 +9,7 @@
         content="Descarga videos de YouTube, TikTok, Instagram, Twitter y más en segundos. Gratis, rápido y sin límites.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -18,27 +18,16 @@
         }
 
         :root {
-            /* Mismos colores del software Videownload */
             --bg-primary: #1c1c1e;
             --bg-secondary: #232325;
-            --bg-tertiary: #2a2a2c;
             --bg-card: #252527;
-            --bg-card-hover: #2d2d30;
-
             --text-primary: #e8e8e8;
             --text-secondary: rgba(232, 232, 232, 0.65);
             --text-muted: rgba(232, 232, 232, 0.4);
-
-            /* Verde salvia - el mismo del software */
-            --accent-primary: #8a9a7b;
-            --accent-hover: #9dab8f;
-            --accent-muted: rgba(138, 154, 123, 0.15);
-
-            --glass-border: rgba(255, 255, 255, 0.06);
-
-            --radius-sm: 4px;
-            --radius-md: 6px;
-            --radius-lg: 8px;
+            --accent: #8a9a7b;
+            --accent-bright: #a8bb96;
+            --accent-glow: rgba(138, 154, 123, 0.25);
+            --glass-border: rgba(255, 255, 255, 0.08);
         }
 
         body {
@@ -46,156 +35,146 @@
             background: var(--bg-primary);
             color: var(--text-primary);
             min-height: 100vh;
-            line-height: 1.5;
+            overflow-x: hidden;
+        }
+
+        /* Fondo con glow sutil */
+        .bg-glow {
+            position: fixed;
+            top: -200px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 800px;
+            height: 600px;
+            background: radial-gradient(ellipse, var(--accent-glow) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
         }
 
         .container {
-            max-width: 900px;
+            max-width: 1000px;
             margin: 0 auto;
             padding: 0 24px;
+            position: relative;
+            z-index: 1;
         }
 
         /* Header */
         header {
-            padding: 24px 0;
+            padding: 20px 0;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid var(--glass-border);
         }
 
         .logo {
             display: flex;
             align-items: center;
-            gap: 12px;
-            font-size: 1.25rem;
+            gap: 10px;
+            font-size: 1.2rem;
             font-weight: 600;
         }
 
         .logo-icon {
-            width: 36px;
-            height: 36px;
-            background: var(--accent-muted);
-            border: 1px solid var(--glass-border);
-            border-radius: var(--radius-md);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1rem;
+            font-size: 1.5rem;
         }
 
-        .github-link {
+        .nav-link {
             color: var(--text-secondary);
             text-decoration: none;
             font-size: 0.9rem;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            transition: color 150ms ease;
+            transition: color 0.2s;
         }
 
-        .github-link:hover {
-            color: var(--accent-primary);
-        }
-
-        .github-link svg {
-            width: 18px;
-            height: 18px;
+        .nav-link:hover {
+            color: var(--accent);
         }
 
         /* Hero */
         .hero {
-            padding: 80px 0 60px;
             text-align: center;
+            padding: 100px 0 80px;
         }
 
         .badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: var(--accent-muted);
-            border: 1px solid var(--glass-border);
-            border-radius: 100px;
-            padding: 6px 14px;
-            font-size: 0.8rem;
-            color: var(--accent-primary);
-            margin-bottom: 28px;
+            display: inline-block;
+            background: var(--accent-glow);
+            border: 1px solid var(--accent);
+            color: var(--accent-bright);
+            padding: 8px 18px;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 32px;
         }
 
         h1 {
-            font-size: clamp(2rem, 5vw, 2.75rem);
-            font-weight: 700;
-            line-height: 1.2;
-            margin-bottom: 16px;
-            color: var(--text-primary);
+            font-size: clamp(2.5rem, 7vw, 4.5rem);
+            font-weight: 800;
+            line-height: 1.05;
+            margin-bottom: 24px;
+            letter-spacing: -0.02em;
+        }
+
+        .highlight {
+            background: linear-gradient(135deg, var(--accent-bright), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .hero-subtitle {
-            font-size: 1.1rem;
+            font-size: 1.25rem;
             color: var(--text-secondary);
-            max-width: 520px;
-            margin: 0 auto 40px;
+            max-width: 550px;
+            margin: 0 auto 48px;
+            line-height: 1.6;
         }
 
-        /* CTA Button */
-        .cta-container {
+        /* CTA */
+        .cta-group {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 12px;
+            gap: 16px;
         }
 
         .cta-button {
             display: inline-flex;
             align-items: center;
-            gap: 10px;
-            background: var(--accent-primary);
+            gap: 12px;
+            background: linear-gradient(135deg, var(--accent-bright), var(--accent));
             color: var(--bg-primary);
-            font-size: 1rem;
-            font-weight: 600;
-            padding: 14px 28px;
-            border-radius: var(--radius-md);
+            font-size: 1.1rem;
+            font-weight: 700;
+            padding: 18px 40px;
+            border-radius: 12px;
             text-decoration: none;
-            transition: all 150ms ease;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 30px var(--accent-glow), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
         }
 
         .cta-button:hover {
-            background: var(--accent-hover);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 40px var(--accent-glow), 0 0 0 1px rgba(255, 255, 255, 0.15) inset;
         }
 
         .cta-button svg {
-            width: 20px;
-            height: 20px;
+            width: 22px;
+            height: 22px;
         }
 
-        .cta-info {
+        .cta-meta {
             font-size: 0.85rem;
             color: var(--text-muted);
-        }
-
-        /* DEMO FLOW INLINE - En el hero */
-        .demo-flow-inline {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 12px;
-            margin: 32px 0 16px;
-            flex-wrap: wrap;
-        }
-
-        .demo-tagline {
-            color: var(--accent-primary);
-            font-size: 0.9rem;
-            font-weight: 500;
-            margin-bottom: 32px;
         }
 
         /* Platforms */
         .platforms {
             display: flex;
             justify-content: center;
-            gap: 24px;
-            margin-top: 48px;
+            gap: 32px;
+            margin-top: 64px;
             flex-wrap: wrap;
         }
 
@@ -208,37 +187,120 @@
         }
 
         .platform svg {
-            width: 20px;
-            height: 20px;
-            opacity: 0.7;
+            width: 22px;
+            height: 22px;
+            opacity: 0.6;
+        }
+
+        /* How it works */
+        .how-section {
+            padding: 80px 0;
+        }
+
+        .section-label {
+            text-align: center;
+            color: var(--accent);
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 16px;
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 48px;
+        }
+
+        .steps-row {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+
+        .step-card {
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 32px 24px;
+            text-align: center;
+            width: 200px;
+            transition: all 0.3s ease;
+        }
+
+        .step-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-4px);
+        }
+
+        .step-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            background: var(--accent-glow);
+            border: 1px solid var(--accent);
+            border-radius: 50%;
+            color: var(--accent-bright);
+            font-weight: 700;
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+        }
+
+        .step-emoji {
+            font-size: 2.5rem;
+            margin-bottom: 16px;
+        }
+
+        .step-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .step-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .step-arrow {
+            font-size: 1.5rem;
+            color: var(--accent);
+            margin-top: 40px;
         }
 
         /* Features */
-        .features {
+        .features-section {
             padding: 60px 0;
             border-top: 1px solid var(--glass-border);
         }
 
         .features-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-            gap: 16px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
         }
 
-        .feature-card {
+        .feature {
             background: var(--bg-card);
             border: 1px solid var(--glass-border);
-            border-radius: var(--radius-lg);
+            border-radius: 12px;
             padding: 24px;
-            transition: border-color 150ms ease;
+            transition: border-color 0.2s;
         }
 
-        .feature-card:hover {
-            border-color: rgba(138, 154, 123, 0.3);
+        .feature:hover {
+            border-color: rgba(138, 154, 123, 0.4);
         }
 
         .feature-icon {
-            font-size: 1.25rem;
+            font-size: 1.5rem;
             margin-bottom: 12px;
         }
 
@@ -246,83 +308,17 @@
             font-size: 1rem;
             font-weight: 600;
             margin-bottom: 8px;
-            color: var(--text-primary);
         }
 
         .feature-desc {
-            color: var(--text-secondary);
             font-size: 0.9rem;
+            color: var(--text-secondary);
             line-height: 1.5;
-        }
-
-        /* DEMO FLOW - Visual 3 pasos */
-        .demo-section {
-            padding: 48px 0;
-            border-top: 1px solid var(--glass-border);
-        }
-
-        .section-title {
-            font-size: 1.5rem;
-            font-weight: 600;
-            text-align: center;
-            margin-bottom: 40px;
-        }
-
-        .demo-flow {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-
-        .demo-step {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .demo-box {
-            background: var(--bg-card);
-            border: 1px solid var(--glass-border);
-            border-radius: var(--radius-lg);
-            padding: 20px 24px;
-            text-align: center;
-            min-width: 140px;
-        }
-
-        .demo-box:hover {
-            border-color: rgba(138, 154, 123, 0.4);
-        }
-
-        .demo-emoji {
-            font-size: 2rem;
-            margin-bottom: 8px;
-        }
-
-        .demo-label {
-            font-weight: 600;
-            font-size: 0.95rem;
-        }
-
-        .demo-arrow {
-            font-size: 1.5rem;
-            color: var(--accent-primary);
-        }
-
-        .demo-highlight {
-            text-align: center;
-            margin-top: 32px;
-            padding: 16px;
-            background: var(--accent-muted);
-            border-radius: var(--radius-md);
-            color: var(--accent-primary);
-            font-weight: 500;
         }
 
         /* Footer */
         footer {
-            padding: 32px 0;
+            padding: 40px 0;
             text-align: center;
             border-top: 1px solid var(--glass-border);
         }
@@ -333,89 +329,61 @@
         }
 
         .footer-text a {
-            color: var(--accent-primary);
+            color: var(--accent);
             text-decoration: none;
         }
 
-        .footer-text a:hover {
-            text-decoration: underline;
-        }
-
         /* Mobile */
-        @media (max-width: 640px) {
+        @media (max-width: 768px) {
             .hero {
-                padding: 60px 0 40px;
+                padding: 60px 0 50px;
+            }
+
+            .step-arrow {
+                display: none;
             }
 
             .platforms {
-                gap: 16px;
-            }
-
-            .steps {
-                gap: 24px;
+                gap: 20px;
             }
         }
     </style>
 </head>
 
 <body>
+    <div class="bg-glow"></div>
+
     <div class="container">
         <header>
             <div class="logo">
-                <div class="logo-icon">⬇️</div>
+                <span class="logo-icon">⬇️</span>
                 <span>Videownload</span>
             </div>
-            <a href="https://github.com/alkirian/Videownload" class="github-link" target="_blank">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path
-                        d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-                </svg>
-                GitHub
-            </a>
+            <a href="https://github.com/alkirian/Videownload" class="nav-link" target="_blank">GitHub</a>
         </header>
 
         <main>
             <section class="hero">
-                <div class="badge">
-                    ✨ Gratis para Windows
-                </div>
+                <div class="badge">✨ Gratis para Windows</div>
 
-                <h1>Descarga videos en segundos</h1>
+                <h1>Descarga videos<br><span class="highlight">en segundos</span></h1>
 
                 <p class="hero-subtitle">
-                    Copia un link de YouTube, TikTok, Instagram o Twitter y Videownload lo descarga automáticamente.
+                    Copia el link de cualquier video. Videownload lo detecta automáticamente y lo agrega a la cola de
+                    descargas.
                 </p>
 
-                <!-- DEMO FLOW - Visible inmediatamente -->
-                <div class="demo-flow-inline">
-                    <div class="demo-box">
-                        <div class="demo-emoji">📋</div>
-                        <div class="demo-label">Copia un link</div>
-                    </div>
-                    <span class="demo-arrow">→</span>
-                    <div class="demo-box">
-                        <div class="demo-emoji">🔔</div>
-                        <div class="demo-label">Se agrega a la cola</div>
-                    </div>
-                    <span class="demo-arrow">→</span>
-                    <div class="demo-box">
-                        <div class="demo-emoji">⬇️</div>
-                        <div class="demo-label">Click y descarga</div>
-                    </div>
-                </div>
-                <p class="demo-tagline">⚡ Automático · Sin pegar nada · Sin abrir ventanas</p>
-
-                <div class="cta-container">
+                <div class="cta-group">
                     <a href="https://github.com/alkirian/Videownload/releases/latest/download/Videownload-Setup-1.0.4.exe"
                         class="cta-button">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15" />
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path d="M21 15V19C21 20.1 20.1 21 19 21H5C3.9 21 3 20.1 3 19V15" />
                             <path d="M7 10L12 15L17 10" />
                             <path d="M12 15V3" />
                         </svg>
                         Descargar Gratis
                     </a>
-                    <span class="cta-info">Windows 10/11 · 74 MB · v1.0.4</span>
+                    <span class="cta-meta">Windows 10/11 · 74 MB · v1.0.4</span>
                 </div>
 
                 <div class="platforms">
@@ -450,43 +418,61 @@
                 </div>
             </section>
 
-            <section class="features">
+            <section class="how-section">
+                <div class="section-label">Cómo funciona</div>
+                <h2 class="section-title">3 pasos, cero complicaciones</h2>
+
+                <div class="steps-row">
+                    <div class="step-card">
+                        <div class="step-num">1</div>
+                        <div class="step-emoji">📋</div>
+                        <h3 class="step-title">Copia el link</h3>
+                        <p class="step-desc">De YouTube, TikTok, Instagram o Twitter</p>
+                    </div>
+
+                    <span class="step-arrow">→</span>
+
+                    <div class="step-card">
+                        <div class="step-num">2</div>
+                        <div class="step-emoji">🔔</div>
+                        <h3 class="step-title">Se detecta solo</h3>
+                        <p class="step-desc">Aparece una notificación automática</p>
+                    </div>
+
+                    <span class="step-arrow">→</span>
+
+                    <div class="step-card">
+                        <div class="step-num">3</div>
+                        <div class="step-emoji">✅</div>
+                        <h3 class="step-title">¡Listo!</h3>
+                        <p class="step-desc">Un click y el video se descarga</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="features-section">
                 <div class="features-grid">
-                    <div class="feature-card">
-                        <div class="feature-icon">📋</div>
-                        <h3 class="feature-title">Detección automática</h3>
-                        <p class="feature-desc">Copia cualquier link y Videownload lo detecta. Sin pegar nada
-                            manualmente.</p>
-                    </div>
-                    <div class="feature-card">
-                        <div class="feature-icon">⚡</div>
-                        <h3 class="feature-title">Un click</h3>
-                        <p class="feature-desc">Aparece una notificación, click y se descarga. Sin pasos intermedios.
-                        </p>
-                    </div>
-                    <div class="feature-card">
+                    <div class="feature">
                         <div class="feature-icon">🎬</div>
                         <h3 class="feature-title">Múltiples calidades</h3>
-                        <p class="feature-desc">Desde 360p hasta 1080p. También puedes extraer solo el audio.</p>
+                        <p class="feature-desc">Elige desde 360p hasta 1080p. También extrae solo audio como MP3.</p>
                     </div>
-                    <div class="feature-card">
+                    <div class="feature">
                         <div class="feature-icon">✂️</div>
                         <h3 class="feature-title">Recorta videos</h3>
                         <p class="feature-desc">Descarga solo la parte que necesitas con precisión de segundos.</p>
                     </div>
-                    <div class="feature-card">
+                    <div class="feature">
                         <div class="feature-icon">📥</div>
                         <h3 class="feature-title">Cola de descargas</h3>
                         <p class="feature-desc">Agrega múltiples videos y descárgalos todos de una vez.</p>
                     </div>
-                    <div class="feature-card">
+                    <div class="feature">
                         <div class="feature-icon">🔄</div>
                         <h3 class="feature-title">Auto-actualización</h3>
                         <p class="feature-desc">Recibe nuevas versiones automáticamente sin descargar de nuevo.</p>
                     </div>
                 </div>
-            </section>
-
             </section>
         </main>
 

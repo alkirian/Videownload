@@ -18,14 +18,31 @@ const isElectronMode = process.env.ELECTRON_MODE === 'true';
 
 // Función para obtener la ruta de yt-dlp
 function getYtDlpPath() {
-    // 1. Si está en modo Electron, usar variable de entorno
-    if (process.env.YT_DLP_PATH && fs.existsSync(process.env.YT_DLP_PATH)) {
-        return process.env.YT_DLP_PATH;
+    // Lista de rutas posibles en orden de prioridad
+    const possiblePaths = [
+        // 1. Variable de entorno (modo Electron)
+        process.env.YT_DLP_PATH,
+        // 2. Ruta de la app (Roaming)
+        path.join(os.homedir(), 'AppData', 'Roaming', 'videownload', 'bin', 'yt-dlp.exe'),
+        // 3. WinGet Links
+        path.join(os.homedir(), 'AppData', 'Local', 'Microsoft', 'WinGet', 'Links', 'yt-dlp.exe'),
+        // 4. PATH del sistema (solo nombre)
+        'yt-dlp.exe',
+        'yt-dlp'
+    ];
+
+    for (const ytPath of possiblePaths) {
+        if (ytPath && fs.existsSync(ytPath)) {
+            console.log('yt-dlp encontrado en:', ytPath);
+            return ytPath;
+        }
     }
 
-    // 2. Fallback a WinGet
+    // Si ninguna existe, usar la ruta más común (WinGet)
+    console.warn('ADVERTENCIA: No se encontró yt-dlp en ninguna ruta conocida');
     return path.join(os.homedir(), 'AppData', 'Local', 'Microsoft', 'WinGet', 'Links', 'yt-dlp.exe');
 }
+
 
 // Función para obtener el directorio de ffmpeg
 function getFfmpegDir() {
@@ -241,7 +258,8 @@ const downloads = new Map();
 // Función para ejecutar comandos y capturar salida
 function runCommand(command, args) {
     return new Promise((resolve, reject) => {
-        const proc = spawn(command, args, { shell: true });
+        // IMPORTANT: Do NOT use shell: true, it breaks arguments with spaces
+        const proc = spawn(command, args);
         let stdout = '';
         let stderr = '';
 
@@ -294,6 +312,11 @@ app.get('/api/info', async (req, res) => {
     }
 
     try {
+        console.log('=== DEBUG /api/info ===');
+        console.log('URL recibida:', url);
+        console.log('YT_DLP_PATH:', YT_DLP_PATH);
+        console.log('Existe yt-dlp?:', fs.existsSync(YT_DLP_PATH));
+
         const output = await runCommand(YT_DLP_PATH, [
             '--dump-json',
             '--no-playlist',
@@ -301,6 +324,8 @@ app.get('/api/info', async (req, res) => {
             '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
             url
         ]);
+
+        console.log('Output length:', output?.length);
 
         const info = JSON.parse(output);
 
@@ -364,9 +389,12 @@ app.get('/api/info', async (req, res) => {
             supportsPlaylist: platformConfig.supportsPlaylist
         });
     } catch (error) {
-        console.error('Error obteniendo info:', error);
+        console.error('=== ERROR /api/info ===');
+        console.error('Error message:', error.message);
+        console.error('Full error:', error);
         res.status(500).json({
             error: `Error al obtener información del video de ${platformConfig.name}`,
+            details: error.message,
             platform: platform
         });
     }

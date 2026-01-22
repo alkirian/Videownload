@@ -724,6 +724,12 @@ function displayVideoInfo(info) {
 }
 
 function renderQualityButtons(qualities) {
+    // Check if qualitySelector exists
+    if (!elements.qualitySelector) {
+        console.warn('qualitySelector element not found');
+        return;
+    }
+
     elements.qualitySelector.innerHTML = '';
 
     const defaultQualities = qualities.length > 0 ? qualities : [1080, 720, 480, 360];
@@ -760,6 +766,12 @@ function selectQuality(quality) {
 }
 
 function updateTimelineDisplay() {
+    // Check if all required timeline elements exist
+    if (!elements.startTimeDisplay || !elements.endTimeDisplay ||
+        !elements.handleStart || !elements.handleEnd || !elements.timelineRange) {
+        return; // Silently return if elements don't exist yet
+    }
+
     elements.startTimeDisplay.textContent = formatDuration(state.startTime);
     elements.endTimeDisplay.textContent = formatDuration(state.endTime);
 
@@ -773,6 +785,12 @@ function updateTimelineDisplay() {
 }
 
 function generateTimelineTicks() {
+    // Check if timelineTicks element exists
+    if (!elements.timelineTicks) {
+        console.warn('timelineTicks element not found');
+        return;
+    }
+
     elements.timelineTicks.innerHTML = '';
     const tickCount = 5;
     const interval = state.duration / (tickCount - 1);

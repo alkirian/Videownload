@@ -240,6 +240,20 @@ function removeFromQueue(id) {
     }
 }
 
+// Descargar un item individual de la cola
+async function downloadSingleItem(id) {
+    const item = state.queue.find(i => i.id === id);
+    if (!item || item.status !== 'pending') return;
+
+    // Marcar solo este item para descarga
+    state.selectedQueueItems.clear();
+    state.selectedQueueItems.add(id);
+    updateQueueUI();
+
+    // Iniciar descarga de este item
+    await downloadQueue();
+}
+
 function toggleQueueItemSelection(id, selected) {
     if (selected) {
         state.selectedQueueItems.add(id);
@@ -489,11 +503,19 @@ function updateQueueUI() {
             ` : item.status === 'error' ? `
                 <div class="queue-item-status error">✗</div>
             ` : `
-                <button class="queue-item-remove" data-id="${item.id}" title="Eliminar">
-                    <svg viewBox="0 0 24 24" fill="none">
-                        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    </svg>
-                </button>
+                <div class="queue-item-actions">
+                    <button class="queue-item-download" data-id="${item.id}" title="Descargar este video">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M12 3V15M12 15L7 10M12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                    <button class="queue-item-remove" data-id="${item.id}" title="Eliminar">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                </div>
             `}
         `;
         elements.queueList.appendChild(div);
@@ -516,11 +538,22 @@ function updateQueueUI() {
         });
     });
 
+    // Event listeners para descargar items individuales
+    document.querySelectorAll('.queue-item-download').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = e.currentTarget.dataset.id;
+            downloadSingleItem(id);
+        });
+    });
+
     // Click en cualquier parte del item para editar (excepto si está procesando)
     document.querySelectorAll('.queue-item.pending').forEach(item => {
         item.addEventListener('click', (e) => {
-            // No activar si clickeó en botón de eliminar o checkbox
-            if (e.target.closest('.queue-item-remove') || e.target.closest('.queue-item-select')) return;
+            // No activar si clickeó en botón de eliminar, descarga o checkbox
+            if (e.target.closest('.queue-item-remove') ||
+                e.target.closest('.queue-item-download') ||
+                e.target.closest('.queue-item-select')) return;
             const id = item.dataset.id;
             editQueueItem(id);
         });

@@ -1730,6 +1730,30 @@ body {
 .queue-item-actions {
     display: flex;
     gap: var(--space-xs);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.queue-item:hover .queue-item-actions {
+    opacity: 1;
+}
+
+.queue-item-download {
+    padding: var(--space-sm);
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: var(--transition-normal);
+}
+
+.queue-item-download:hover {
+    color: var(--accent-primary);
+}
+
+.queue-item-download svg {
+    width: 18px;
+    height: 18px;
 }
 
 .queue-item-edit {

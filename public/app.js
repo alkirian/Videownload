@@ -1501,14 +1501,17 @@ function clearHistory() {
 }
 
 function updateHistoryUI() {
-    if (!elements.historySection || !elements.historyList) return;
+    if (!elements.historyList) return;
 
+    // Manejar estado vacío
     if (state.downloadHistory.length === 0) {
-        elements.historySection.classList.add('hidden');
+        elements.historyList.innerHTML = '';
+        elements.historyEmptyState?.classList.remove('hidden');
+        elements.clearHistoryBtn?.classList.add('hidden');
         return;
     }
 
-    elements.historySection.classList.remove('hidden');
+    elements.historyEmptyState?.classList.add('hidden');
     elements.clearHistoryBtn?.classList.remove('hidden');
 
     elements.historyList.innerHTML = state.downloadHistory.map((item, index) => `
@@ -1568,11 +1571,31 @@ function formatTimeAgo(timestamp) {
     return `Hace ${days}d`;
 }
 
-// Event listeners para historial
-if (elements.toggleHistoryBtn) {
-    elements.toggleHistoryBtn.addEventListener('click', () => {
-        elements.historySection.classList.toggle('collapsed');
-    });
+// Event listeners para historial modal
+function showHistoryModal() {
+    if (elements.historyModal) {
+        updateHistoryUI(); // Actualizar al abrir
+        elements.historyModal.classList.remove('hidden');
+    }
+}
+
+function hideHistoryModal() {
+    if (elements.historyModal) {
+        elements.historyModal.classList.add('hidden');
+    }
+}
+
+if (elements.openHistoryBtn) {
+    elements.openHistoryBtn.addEventListener('click', showHistoryModal);
+}
+
+if (elements.closeHistoryModal) {
+    elements.closeHistoryModal.addEventListener('click', hideHistoryModal);
+}
+
+if (elements.historyModal) {
+    // Cerrar al hacer clic fuera
+    elements.historyModal.querySelector('.modal-backdrop')?.addEventListener('click', hideHistoryModal);
 }
 
 if (elements.clearHistoryBtn) {

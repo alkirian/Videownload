@@ -209,7 +209,9 @@ body {
    ═══════════════════════════════════════════════════════════ */
 
 .header {
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     margin-bottom: var(--space-xl);
 }
 
@@ -2400,4 +2402,189 @@ body {
 .folder-open-btn svg {
     width: 16px;
     height: 16px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   HISTORY UI REFACTOR
+   ═══════════════════════════════════════════════════════════ */
+
+/* Header History Button */
+.header-icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-full);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.header-icon-btn:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.header-icon-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* History Modal Specifics */
+.modal-history {
+    max-width: 600px;
+    width: 90%;
+    display: flex;
+    flex-direction: column;
+    max-height: 80vh;
+}
+
+.modal-history .modal-body {
+    padding: var(--space-md);
+    overflow-y: auto;
+    flex: 1;
+}
+
+.modal-history .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-md) var(--space-lg);
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.modal-history .modal-header h3 {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-size: 1.1rem;
+    color: var(--text-primary);
+}
+
+.modal-history .modal-header h3 svg {
+    width: 20px;
+    height: 20px;
+    color: var(--accent-primary);
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.clear-history-icon-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: var(--space-xs);
+    border-radius: var(--radius-sm);
+    transition: var(--transition-fast);
+}
+
+.clear-history-icon-btn:hover {
+    color: var(--error);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.clear-history-icon-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* History List & Items */
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.history-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    background: var(--bg-secondary);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    transition: var(--transition-fast);
+}
+
+.history-item:hover {
+    border-color: var(--accent-muted);
+    background: var(--bg-tertiary);
+}
+
+.history-item-icon {
+    color: var(--accent-primary);
+    opacity: 0.8;
+}
+
+.history-item-icon svg {
+    width: 24px;
+    height: 24px;
+}
+
+.history-item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.history-item-name {
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 4px;
+}
+
+.history-item-meta {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.history-item-actions {
+    display: flex;
+    gap: var(--space-xs);
+}
+
+.history-item-btn {
+    background: transparent;
+    border: 1px solid var(--glass-border);
+    color: var(--text-secondary);
+    padding: var(--space-xs);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+}
+
+.history-item-btn:hover {
+    color: var(--accent-primary);
+    border-color: var(--accent-primary);
+    background: var(--accent-muted);
+}
+
+.history-item-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.history-empty {
+    text-align: center;
+    padding: var(--space-2xl);
+    color: var(--text-muted);
+    font-style: italic;
 }

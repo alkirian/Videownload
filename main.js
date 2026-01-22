@@ -774,8 +774,8 @@ async function analyzeAndNotify(videoInfo) {
 
     // Notificación de "analizando"
     const analyzingNotification = new Notification({
-        title: `🔍 Analizando ${videoInfo.platform}...`,
-        body: 'Obteniendo información del video',
+        title: 'Analizando...',
+        body: `Detectado enlace de ${videoInfo.platform}`,
         icon: path.join(__dirname, 'assets', 'icon.png'),
         silent: true
     });
@@ -831,44 +831,31 @@ async function analyzeAndNotify(videoInfo) {
             mainWindow.webContents.send('add-to-queue', fullVideoData);
         }
 
-        // Notificación con botones de acción
+        // Notificación de éxito
         const successNotification = new Notification({
-            title: `✅ ${videoData.title?.substring(0, 40) || 'Video'}`,
-            body: `${videoInfo.platform} • Click para descargar`,
+            title: 'Análisis exitoso',
+            body: `${videoData.title?.substring(0, 50) || 'Video listo'}`,
             icon: path.join(__dirname, 'assets', 'icon.png'),
             silent: false,
-            actions: [
-                { type: 'button', text: '⬇️ Descargar' },
-                { type: 'button', text: '📂 Abrir App' }
-            ],
-            toastXml: generateToastXml(videoData.title, videoInfo.platform)
+            // Sin botones de acción, solo click simple
+            toastXml: generateToastXml('Análisis exitoso', videoData.title)
         });
 
-        // Handler para acciones de los botones
-        successNotification.on('action', (event, index) => {
-            if (index === 0) {
-                // Botón "Descargar" - Iniciar descarga directa
-                startDirectDownload(fullVideoData);
-            } else if (index === 1) {
-                // Botón "Abrir App"
-                if (mainWindow) {
-                    mainWindow.show();
-                    mainWindow.focus();
-                }
-            }
-        });
-
-        // Click en la notificación = Descargar directamente
+        // Click en la notificación = Abrir App (NO descargar)
         successNotification.on('click', () => {
-            startDirectDownload(fullVideoData);
+            if (mainWindow) {
+                if (mainWindow.isMinimized()) mainWindow.restore();
+                mainWindow.show();
+                mainWindow.focus();
+            }
         });
 
         successNotification.show();
 
-        // Cerrar automáticamente después de 8 segundos
+        // Cerrar automáticamente después de 5 segundos
         setTimeout(() => {
             try { successNotification.close(); } catch (e) { }
-        }, 8000);
+        }, 5000);
 
     } catch (error) {
         console.error('Error analizando video:', error);
@@ -876,7 +863,7 @@ async function analyzeAndNotify(videoInfo) {
 
         // Notificación de error (NO se guarda en borradores)
         const errorNotification = new Notification({
-            title: `❌ Error al analizar`,
+            title: 'Error al analizar',
             body: 'No se pudo obtener información del video',
             icon: path.join(__dirname, 'assets', 'icon.png'),
             silent: false

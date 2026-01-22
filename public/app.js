@@ -27,7 +27,9 @@ const state = {
     // Historial de descargas (guardado en localStorage)
     downloadHistory: JSON.parse(localStorage.getItem('downloadHistory') || '[]'),
     // Último archivo descargado (para modal de éxito)
-    lastDownload: null
+    lastDownload: null,
+    // Selección de items en la cola
+    selectedQueueItems: new Set()
 };
 
 // Elementos del DOM
@@ -55,16 +57,17 @@ const elements = {
     endTimeDisplay: document.getElementById('endTimeDisplay'),
     timelineTicks: document.getElementById('timelineTicks'),
     downloadBtn: document.getElementById('downloadBtn'),
-    addToQueueBtn: document.getElementById('addToQueueBtn'),
+    addToQueueBtn: document.getElementById('addToQueueBtn'), // Sidebar button
     progressContainer: document.getElementById('progressContainer'),
     progressFill: document.getElementById('progressFill'),
     progressText: document.getElementById('progressText'),
     statusText: document.getElementById('statusText'),
     // Cola
-    queueSection: document.getElementById('queueSection'),
+    queueSection: document.querySelector('.queue-panel-primary'), // Updated selector
     queueCount: document.getElementById('queueCount'),
     queueList: document.getElementById('queueList'),
     clearQueueBtn: document.getElementById('clearQueueBtn'),
+    moveFolderBtn: document.getElementById('moveFolderBtn'),
     downloadAllBtn: document.getElementById('downloadAllBtn'),
     // Modal Playlist
     playlistModal: document.getElementById('playlistModal'),
@@ -91,16 +94,16 @@ const elements = {
     retryDownloadBtn: document.getElementById('retryDownloadBtn'),
     closeErrorModal: document.getElementById('closeErrorModal'),
     // Historial
-    historySection: document.getElementById('historySection'),
+    openHistoryBtn: document.getElementById('openHistoryBtn'),
+    historyModal: document.getElementById('historyModal'),
     historyList: document.getElementById('historyList'),
-    toggleHistoryBtn: document.getElementById('toggleHistoryBtn'),
+    historyEmptyState: document.getElementById('historyEmptyState'),
     clearHistoryBtn: document.getElementById('clearHistoryBtn'),
-    // Empty State y Opciones Avanzadas
+    closeHistoryModal: document.getElementById('closeHistoryModal'),
+    // Empty State y Sidebar
     emptyState: document.getElementById('emptyState'),
-    advancedOptions: document.getElementById('advancedOptions'),
-    advancedOptionsToggle: document.getElementById('advancedOptionsToggle'),
-    advancedOptionsContent: document.getElementById('advancedOptionsContent'),
-    optionsSummary: document.getElementById('optionsSummary')
+    noSelectionState: document.getElementById('noSelectionState'), // New state
+    // Removed Advanced Options references as they are now always visible in sidebar
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -210,9 +213,46 @@ function addToQueue(videoInfo, url) {
 
 function removeFromQueue(id) {
     state.queue = state.queue.filter(item => item.id !== id);
+    state.selectedQueueItems.delete(id);
     updateQueueUI();
     if (state.queue.length === 0) {
         hideQueueSection();
+    }
+}
+
+function toggleQueueItemSelection(id, selected) {
+    if (selected) {
+        state.selectedQueueItems.add(id);
+    } else {
+        state.selectedQueueItems.delete(id);
+    }
+    // Solo actualizar UI visualmente para no redibujar todo
+    updateQueueUI();
+}
+
+async function moveSelectedItemsToFolder() {
+    if (state.selectedQueueItems.size === 0) return;
+
+    if (!isElectron) {
+        showDownloadToast('⚠️ Función limitada', 'Solo disponible en la versión de escritorio');
+        return;
+    }
+
+    constresult = await window.electronAPI.selectFolder();
+    if (result.success) {
+        // Actualizar items seleccionados
+        state.queue.forEach(item => {
+            if (state.selectedQueueItems.has(item.id)) {
+                item.downloadPath = result.path;
+                item.downloadPathName = result.name;
+            }
+        });
+
+        // Limpiar selección y actualizar UI
+        state.selectedQueueItems.clear();
+        updateQueueUI();
+
+        showDownloadToast('📂 Carpeta actualizada', `Videos movidos a ${result.name}`);
     }
 }
 
@@ -247,15 +287,17 @@ function editQueueItem(id) {
     // Guardar referencia al item que estamos editando
     state.editingQueueItemId = id;
 
-    // Cargar URL en el input
+    // Cargar URL en el input (opcional, para referencia)
     elements.urlInput.value = item.url;
 
-    // Simular la info del video
+    // Simular la info del video para el sidebar
     state.videoInfo = {
         title: item.title,
         thumbnail: item.thumbnail,
-        duration: item.duration
+        duration: item.duration,
+        platformIcon: item.platformIcon // Ensure we keep platform info
     };
+    state.currentUrl = item.url; // Update current context
     state.duration = item.duration;
 
     // Restaurar parámetros del item
@@ -265,47 +307,54 @@ function editQueueItem(id) {
     state.startTime = item.startTime;
     state.endTime = item.endTime;
 
-    // Actualizar UI de audio/video
-    if (item.audioOnly) {
-        elements.audioToggle.classList.add('active');
-        elements.videoToggle.classList.remove('active');
-        elements.qualityCard.style.display = 'none';
-    } else {
-        elements.videoToggle.classList.add('active');
-        elements.audioToggle.classList.remove('active');
-        elements.qualityCard.style.display = 'block';
+    // Actualizar UI de audio (checkbox)
+    if (elements.audioToggle) {
+        elements.audioToggle.checked = item.audioOnly;
+        // Trigger change to update quality card visibility
+        elements.audioToggle.dispatchEvent(new Event('change'));
+    }
 
-        // Renderizar calidades disponibles si no hay botones
-        if (elements.qualitySelector.children.length === 0) {
+    // Renderizar calidades disponibles si es necesario
+    if (!item.audioOnly && elements.qualitySelector) {
+        // Si no hay botones generados, generar defaults o usar los guardados
+        // Idealmente deberíamos tener las calidades originales guardadas en el item, 
+        // pero por ahora usaremos defaults si no hay info
+        if (state.videoInfo && state.videoInfo.videoQualities) {
+            renderQualityButtons(state.videoInfo.videoQualities);
+        } else if (elements.qualitySelector.children.length === 0) {
             renderQualityButtons([1080, 720, 480, 360]);
         }
 
-        // Marcar la calidad del item como activa
+        // Marcar calidad activa
         if (item.quality) {
-            document.querySelectorAll('.quality-btn').forEach(btn => {
-                btn.classList.toggle('active', parseInt(btn.dataset.quality) === item.quality);
-            });
+            selectQuality(item.quality);
         }
     }
 
     // Actualizar UI de recorte
-    elements.trimEnabled.checked = item.trimEnabled;
-    elements.timelineContainer.classList.toggle('disabled', !item.trimEnabled);
+    if (elements.trimEnabled) {
+        elements.trimEnabled.checked = item.trimEnabled;
+        elements.trimEnabled.dispatchEvent(new Event('change'));
+    }
     updateHandlePositions();
 
-    // Mostrar preview del video
-    elements.videoPreview.classList.remove('hidden');
-    elements.thumbnail.src = item.thumbnail;
-    elements.videoTitle.textContent = item.title;
-    elements.durationBadge.textContent = formatDuration(item.duration);
+    // Mostrar preview del video y ocultar estado "sin selección"
+    if (elements.noSelectionState) elements.noSelectionState.classList.add('hidden');
+    if (elements.videoPreview) elements.videoPreview.classList.remove('hidden');
+
+    if (elements.thumbnail) elements.thumbnail.src = item.thumbnail || 'assets/placeholder.svg';
+    if (elements.videoTitle) elements.videoTitle.textContent = item.title || 'Video sin título';
+    if (elements.durationBadge) elements.durationBadge.textContent = formatDuration(item.duration);
 
     // Marcar visualmente el item que estamos editando
     document.querySelectorAll('.queue-item').forEach(el => {
         el.classList.toggle('editing', el.dataset.id === id);
     });
 
-    // Scroll hacia arriba para ver el editor
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // En móviles, hacer scroll al sidebar (arriba)
+    if (window.innerWidth < 900) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
 }
 
 // Función para actualizar posiciones de handles
@@ -314,20 +363,19 @@ function updateHandlePositions() {
     const startPercent = (state.startTime / state.duration) * 100;
     const endPercent = (state.endTime / state.duration) * 100;
 
-    const startHandle = document.getElementById('startHandle');
-    const endHandle = document.getElementById('endHandle');
-    const selection = document.getElementById('selection');
+    // Usar elementos cacheados o buscarlos si es necesario
+    // Nota: handleStart y handleEnd ya están en elements
 
-    if (startHandle) startHandle.style.left = startPercent + '%';
-    if (endHandle) endHandle.style.left = endPercent + '%';
-    if (selection) {
-        selection.style.left = startPercent + '%';
-        selection.style.width = (endPercent - startPercent) + '%';
+    if (elements.handleStart) elements.handleStart.style.left = startPercent + '%';
+    if (elements.handleEnd) elements.handleEnd.style.left = endPercent + '%';
+    if (elements.timelineRange) {
+        elements.timelineRange.style.left = startPercent + '%';
+        elements.timelineRange.style.right = (100 - endPercent) + '%';
     }
 
     // Actualizar etiquetas de tiempo
-    if (elements.startTimeLabel) elements.startTimeLabel.textContent = formatDuration(state.startTime);
-    if (elements.endTimeLabel) elements.endTimeLabel.textContent = formatDuration(state.endTime);
+    if (elements.startTimeDisplay) elements.startTimeDisplay.textContent = formatDuration(state.startTime);
+    if (elements.endTimeDisplay) elements.endTimeDisplay.textContent = formatDuration(state.endTime);
 }
 
 function clearQueue() {
@@ -348,10 +396,26 @@ function updateQueueUI() {
     elements.queueCount.textContent = state.queue.length;
     elements.queueList.innerHTML = '';
 
+    // Actualizar visibilidad del botón de mover a carpeta
+    if (elements.moveFolderBtn) {
+        if (state.selectedQueueItems.size > 0) {
+            elements.moveFolderBtn.classList.remove('hidden');
+            const count = state.selectedQueueItems.size;
+            elements.moveFolderBtn.title = `Mover ${count} video${count > 1 ? 's' : ''} a carpeta`;
+        } else {
+            elements.moveFolderBtn.classList.add('hidden');
+        }
+    }
+
     state.queue.forEach(item => {
         const div = document.createElement('div');
         div.className = `queue-item ${item.status}`;
         div.dataset.id = item.id;
+
+        // Si el item está seleccionado
+        if (state.selectedQueueItems.has(item.id)) {
+            div.classList.add('selected');
+        }
 
         // Badges de configuración
         const qualityBadge = item.audioOnly
@@ -362,12 +426,38 @@ function updateQueueUI() {
             ? `<span class="queue-badge trim">✂️ ${formatDuration(item.startTime)}-${formatDuration(item.endTime)}</span>`
             : '';
 
+        // Badge de carpeta personalizada
+        const folderBadge = item.downloadPathName
+            ? `<span class="queue-badge folder" title="${item.downloadPath}">📂 ${item.downloadPathName}</span>`
+            : '';
+
+        // Placeholder para thumbnails rotos o vacíos
+        const placeholderThumb = `data:image/svg+xml,${encodeURIComponent(`
+            <svg xmlns="http://www.w3.org/2000/svg" width="80" height="60" viewBox="0 0 80 60">
+                <defs>
+                    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#1a1a2e"/>
+                        <stop offset="100%" style="stop-color:#16213e"/>
+                    </linearGradient>
+                </defs>
+                <rect width="80" height="60" fill="url(#grad)"/>
+                <text x="40" y="35" text-anchor="middle" dominant-baseline="middle" font-size="24">${item.platformIcon || '🎬'}</text>
+            </svg>
+        `)}`;
+
+        const thumbnailSrc = item.thumbnail || placeholderThumb;
+
         div.innerHTML = `
-            <img class="queue-item-thumb" src="${item.thumbnail}" alt="">
+            <div class="queue-item-select" onclick="event.stopPropagation()">
+                <input type="checkbox" class="queue-checkbox" 
+                    ${state.selectedQueueItems.has(item.id) ? 'checked' : ''} 
+                    ${item.status !== 'pending' ? 'disabled' : ''}>
+            </div>
+            <img class="queue-item-thumb" src="${thumbnailSrc}" alt="" onerror="this.src='${placeholderThumb}'">
             <div class="queue-item-info">
-                <div class="queue-item-title">${item.title}</div>
+                <div class="queue-item-title">${item.title || 'Video sin título'}</div>
                 <div class="queue-item-badges">
-                    ${qualityBadge}${trimBadge}
+                    ${qualityBadge}${trimBadge}${folderBadge}
                 </div>
             </div>
             ${item.status === 'downloading' ? `
@@ -387,6 +477,14 @@ function updateQueueUI() {
             `}
         `;
         elements.queueList.appendChild(div);
+
+        // Listener para el checkbox
+        const checkbox = div.querySelector('.queue-checkbox');
+        if (checkbox) {
+            checkbox.addEventListener('change', (e) => {
+                toggleQueueItemSelection(item.id, e.target.checked);
+            });
+        }
     });
 
     // Event listeners para eliminar items
@@ -401,8 +499,8 @@ function updateQueueUI() {
     // Click en cualquier parte del item para editar (excepto si está procesando)
     document.querySelectorAll('.queue-item.pending').forEach(item => {
         item.addEventListener('click', (e) => {
-            // No activar si clickeó en botón de eliminar
-            if (e.target.closest('.queue-item-remove')) return;
+            // No activar si clickeó en botón de eliminar o checkbox
+            if (e.target.closest('.queue-item-remove') || e.target.closest('.queue-item-select')) return;
             const id = item.dataset.id;
             editQueueItem(id);
         });
@@ -462,7 +560,9 @@ async function processQueue() {
             }
 
             // Agregar carpeta de destino
-            if (state.downloadPath) {
+            if (item.downloadPath) {
+                params.set('outputDir', item.downloadPath);
+            } else if (state.downloadPath) {
                 params.set('outputDir', state.downloadPath);
             }
 
@@ -591,7 +691,13 @@ function displayVideoInfo(info) {
     if (elements.emptyState) {
         elements.emptyState.classList.add('hidden');
     }
-    elements.videoPreview.classList.remove('hidden');
+    // Hide "no selection" state and show video preview
+    if (elements.noSelectionState) {
+        elements.noSelectionState.classList.add('hidden');
+    }
+    if (elements.videoPreview) {
+        elements.videoPreview.classList.remove('hidden');
+    }
 
     // Actualizar resumen de opciones
     updateOptionsSummary();
@@ -773,24 +879,52 @@ elements.urlInput.addEventListener('keypress', (e) => {
     }
 });
 
-// Toggle video/audio
-elements.videoToggle.addEventListener('click', () => {
-    state.audioOnly = false;
-    elements.videoToggle.classList.add('active');
-    elements.audioToggle.classList.remove('active');
-    elements.qualityCard.style.display = 'flex';
-    saveCurrentEdit(); // Auto-guardar cambios
-    updateOptionsSummary();
-});
+// Toggle Audio (Checkbox)
+if (elements.audioToggle) {
+    elements.audioToggle.addEventListener('change', (e) => {
+        state.audioOnly = e.target.checked;
+        if (elements.qualityCard) {
+            elements.qualityCard.style.display = state.audioOnly ? 'none' : 'block';
+        }
+        saveCurrentEdit();
+        // updateQualityOptions(); // Function might not exist, checking dependencies...
+        if (typeof renderQualityButtons === 'function' && state.videoInfo) {
+            // Re-render might not be needed if we just hide the card
+        }
+    });
+}
 
-elements.audioToggle.addEventListener('click', () => {
-    state.audioOnly = true;
-    elements.audioToggle.classList.add('active');
-    elements.videoToggle.classList.remove('active');
-    elements.qualityCard.style.display = 'none';
-    saveCurrentEdit(); // Auto-guardar cambios
-    updateOptionsSummary();
-});
+// Botón "Actualizar Opciones" / "Agregar a Cola"
+if (elements.addToQueueBtn) {
+    elements.addToQueueBtn.addEventListener('click', () => {
+        // 1. Si hay un item seleccionado en la cola, actualizarlo
+        if (state.selectedQueueItems.size === 1) {
+            const id = Array.from(state.selectedQueueItems)[0];
+            const item = state.queue.find(i => i.id === id);
+            if (item) {
+                item.audioOnly = state.audioOnly;
+                item.quality = state.selectedQuality;
+                item.trimEnabled = state.trimEnabled;
+                item.startTime = state.startTime;
+                item.endTime = state.endTime;
+
+                updateQueueUI();
+                showDownloadToast('Opciones actualizadas', 'Se guardó la configuración');
+                return;
+            }
+        }
+
+        // 2. Si no, y hay un video analizado pero no agregado (el "currentUrl"), agregarlo
+        if (state.videoInfo && state.currentUrl) {
+            addToQueue(state.videoInfo, state.currentUrl);
+            // Limpiar UI
+            elements.urlInput.value = '';
+            elements.videoPreview.classList.add('hidden');
+            // Resetear estado
+            state.videoInfo = null;
+        }
+    });
+}
 
 // Trim toggle
 elements.trimEnabled.addEventListener('change', (e) => {
@@ -1467,6 +1601,11 @@ if (elements.retryDownloadBtn) {
             elements.downloadBtn.click();
         }
     });
+}
+
+// Mover a carpeta (multi-selección)
+if (elements.moveFolderBtn) {
+    elements.moveFolderBtn.addEventListener('click', moveSelectedItemsToFolder);
 }
 
 // ═══════════════════════════════════════════════════════════

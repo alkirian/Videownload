@@ -104,12 +104,13 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   LAYOUT - Two Column
+   LAYOUT - Two Column (Reordered)
    ═══════════════════════════════════════════════════════════ */
 
 .container {
     width: 100%;
-    max-width: 1200px;
+    max-width: 1400px;
+    /* Increased max-width for better queue view */
     margin: 0 auto;
     padding: var(--space-lg);
     padding-top: var(--space-md);
@@ -117,34 +118,65 @@ body {
 
 .main-layout {
     display: grid;
-    grid-template-columns: 1fr 320px;
+    /* Left: Queue (flexible, larger) | Right: Controls (fixed width) */
+    grid-template-columns: 1fr 380px;
     gap: var(--space-xl);
     align-items: start;
 }
 
-.main-panel {
+/* Panel Izquierdo (Cola - Principal) */
+.queue-panel-primary {
     min-width: 0;
-}
-
-/* Panel de Cola (derecha) */
-.queue-panel {
-    position: sticky;
-    top: var(--space-lg);
-    background: var(--bg-secondary);
-    border-left: 1px solid var(--glass-border);
-    padding: var(--space-md);
     display: flex;
     flex-direction: column;
-    max-height: calc(100vh - 120px);
+    gap: var(--space-md);
 }
 
-.queue-panel-header {
+.queue-header-primary {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding-bottom: var(--space-md);
+    padding-bottom: var(--space-sm);
     border-bottom: 1px solid var(--glass-border);
-    margin-bottom: var(--space-md);
+}
+
+.queue-header-primary h3 {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.queue-header-primary h3 svg {
+    width: 20px;
+    height: 20px;
+    color: var(--accent-primary);
+}
+
+.queue-content-primary {
+    min-height: 400px;
+}
+
+/* Grid para items de la cola (ahora lista vertical) */
+.queue-list-grid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+/* Panel Derecho (Sidebar - Controles) */
+.controls-panel-sidebar {
+    position: sticky;
+    top: var(--space-lg);
+    background: var(--bg-secondary);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
 }
 
 .queue-panel-header h3 {
@@ -195,13 +227,113 @@ body {
         grid-template-columns: 1fr;
     }
 
-    .queue-panel {
+    .controls-panel-sidebar {
         position: static;
-        max-height: none;
-        border-left: none;
-        border-top: 1px solid var(--glass-border);
-        margin-top: var(--space-xl);
+        order: -1;
+        /* En móvil, controles arriba */
     }
+}
+
+/* Sidebar Elements */
+.sidebar-section-title {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: var(--space-xs);
+}
+
+.option-card-sidebar {
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    margin-bottom: var(--space-md);
+}
+
+.option-header-sidebar {
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: var(--space-sm);
+    color: var(--text-secondary);
+}
+
+.quality-select-sidebar {
+    width: 100%;
+    padding: var(--space-sm);
+    background: var(--bg-primary);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.toggles-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.toggle-option-sidebar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    cursor: pointer;
+    user-select: none;
+    padding: var(--space-sm);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    transition: background var(--transition-fast);
+}
+
+.toggle-option-sidebar:hover {
+    background: var(--bg-card-hover);
+}
+
+.add-btn-sidebar,
+.download-btn-sidebar {
+    width: 100%;
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform var(--transition-fast);
+}
+
+.add-btn-sidebar {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--glass-border);
+}
+
+.download-btn-sidebar {
+    background: var(--text-primary);
+    /* Using white/light as primary action */
+    color: var(--bg-primary);
+    margin-top: var(--space-sm);
+}
+
+.download-btn-sidebar:hover,
+.add-btn-sidebar:hover {
+    transform: translateY(-2px);
+}
+
+/* Timeline Sidebar */
+.timeline-container-sidebar {
+    margin-top: var(--space-md);
+    padding: var(--space-sm);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+}
+
+.timeline-inputs {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--space-sm);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -2587,4 +2719,41 @@ body {
     padding: var(--space-2xl);
     color: var(--text-muted);
     font-style: italic;
+    /* ═══════════════════════════════════════════════════════════
+   QUEUE ACTIONS & SELECTION
+   ═══════════════════════════════════════════════════════════ */
+
+    /* Checkbox container */
+    .queue-item-select {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: var(--space-md);
+        cursor: pointer;
+    }
+
+    .queue-checkbox {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--accent-primary);
+        cursor: pointer;
+    }
+
+    /* Selected state */
+    .queue-item.selected {
+        background: rgba(138, 154, 123, 0.1);
+        border-color: var(--accent-primary);
+    }
+
+    /* Folder badge specific style */
+    .queue-badge.folder {
+        background: rgba(138, 154, 123, 0.2);
+        color: var(--accent-primary);
+        border: 1px solid rgba(138, 154, 123, 0.3);
+    }
+
+    /* Move folder button */
+    .queue-actions button.hidden {
+        display: none;
+    }
 }

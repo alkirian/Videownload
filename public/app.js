@@ -2,7 +2,17 @@
 // Video Downloader - Frontend Logic
 // ═══════════════════════════════════════════════════════════
 
-const API_BASE = '';
+// Detectar base URL del API - funciona tanto servido por Express como abierto directamente
+const API_BASE = (function () {
+    // Si estamos siendo servidos por localhost (Express), usar origen vacío (relativo)
+    if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
+        return '';
+    }
+    // Si estamos en file:// (Electron o directo), usar localhost:3000 por defecto
+    return 'http://localhost:3000';
+})();
+
+console.log('API_BASE configurado a:', API_BASE || '(relativo al origen)');
 
 // Estado de la aplicación
 const state = {

@@ -118,8 +118,8 @@ body {
 
 .main-layout {
     display: grid;
-    /* Left: Queue (flexible, larger) | Right: Controls (fixed width) */
-    grid-template-columns: 1fr 380px;
+    /* Left: Queue (flexible) | Right: Controls (wider sidebar for better UX) */
+    grid-template-columns: 1fr 480px;
     gap: var(--space-xl);
     align-items: start;
 }
@@ -173,11 +173,113 @@ body {
     background: var(--bg-secondary);
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-lg);
-    padding: var(--space-md);
+    padding: var(--space-lg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+    max-height: calc(100vh - var(--space-2xl));
+    overflow-y: auto;
+}
+
+/* Video Preview Section */
+.video-preview-sidebar {
     display: flex;
     flex-direction: column;
     gap: var(--space-md);
 }
+
+.preview-card-sidebar {
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.thumbnail-container-sidebar {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: var(--bg-primary);
+    overflow: hidden;
+}
+
+.thumbnail-container-sidebar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.duration-badge,
+.platform-badge {
+    position: absolute;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: rgba(0, 0, 0, 0.75);
+    color: white;
+    backdrop-filter: blur(4px);
+}
+
+.duration-badge {
+    bottom: 8px;
+    right: 8px;
+}
+
+.platform-badge {
+    top: 8px;
+    left: 8px;
+    font-size: 1.2rem;
+}
+
+
+.video-info-sidebar {
+    padding: var(--space-md);
+}
+
+.video-title-sidebar {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 var(--space-xs) 0;
+    line-height: 1.4;
+}
+
+.video-uploader-sidebar {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.download-options-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+/* No Selection State */
+.no-selection-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: var(--space-2xl);
+    color: var(--text-muted);
+    min-height: 300px;
+}
+
+.no-selection-icon {
+    font-size: 3rem;
+    margin-bottom: var(--space-md);
+    opacity: 0.5;
+}
+
+.no-selection-state p {
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
 
 .queue-panel-header h3 {
     display: flex;

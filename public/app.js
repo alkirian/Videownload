@@ -79,6 +79,11 @@ const elements = {
     clearQueueBtn: document.getElementById('clearQueueBtn'),
     moveFolderBtn: document.getElementById('moveFolderBtn'),
     downloadAllBtn: document.getElementById('downloadAllBtn'),
+    downloadSelectedBtn: document.getElementById('downloadSelectedBtn'),
+    selectedCount: document.getElementById('selectedCount'),
+    batchProgress: document.getElementById('batchProgress'),
+    batchCurrent: document.getElementById('batchCurrent'),
+    batchTotal: document.getElementById('batchTotal'),
     // Modal Playlist
     playlistModal: document.getElementById('playlistModal'),
     playlistInfo: document.getElementById('playlistInfo'),
@@ -125,6 +130,19 @@ function formatDuration(seconds) {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+// Debounce Utility
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
 }
 
 function showError(message) {
@@ -251,7 +269,7 @@ async function downloadSingleItem(id) {
     updateQueueUI();
 
     // Iniciar descarga de este item
-    await downloadQueue();
+    await processQueue();
 }
 
 function toggleQueueItemSelection(id, selected) {
@@ -272,7 +290,7 @@ async function moveSelectedItemsToFolder() {
         return;
     }
 
-    constresult = await window.electronAPI.selectFolder();
+    const result = await window.electronAPI.selectFolder();
     if (result.success) {
         // Actualizar items seleccionados
         state.queue.forEach(item => {
@@ -288,6 +306,68 @@ async function moveSelectedItemsToFolder() {
 
         showDownloadToast('📂 Carpeta actualizada', `Videos movidos a ${result.name}`);
     }
+}
+
+// ═══════════════════════════════════════════════════════════
+// DRAG AND DROP REORDERING
+// ═══════════════════════════════════════════════════════════
+
+let draggedItem = null;
+
+function handleDragStart(e) {
+    draggedItem = this;
+    this.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', this.dataset.id);
+}
+
+function handleDragEnd(e) {
+    this.classList.remove('dragging');
+    document.querySelectorAll('.queue-item').forEach(item => {
+        item.classList.remove('drag-over');
+    });
+    draggedItem = null;
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+}
+
+function handleDragEnter(e) {
+    e.preventDefault();
+    if (this !== draggedItem && this.classList.contains('queue-item')) {
+        this.classList.add('drag-over');
+    }
+}
+
+function handleDragLeave(e) {
+    this.classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (draggedItem === this) return;
+
+    const draggedId = e.dataTransfer.getData('text/plain');
+    const targetId = this.dataset.id;
+
+    // Encontrar índices
+    const draggedIndex = state.queue.findIndex(i => i.id === draggedId);
+    const targetIndex = state.queue.findIndex(i => i.id === targetId);
+
+    if (draggedIndex === -1 || targetIndex === -1) return;
+
+    // Reordenar array
+    const [removed] = state.queue.splice(draggedIndex, 1);
+    state.queue.splice(targetIndex, 0, removed);
+
+    // Actualizar UI
+    updateQueueUI();
+
+    this.classList.remove('drag-over');
 }
 
 // Guardar cambios del item actualmente en edición
@@ -414,8 +494,9 @@ function updateHandlePositions() {
 
 function clearQueue() {
     state.queue = [];
+    state.selectedQueueItems.clear();
     updateQueueUI();
-    hideQueueSection();
+    // No ocultar la sección - updateQueueUI ya muestra el estado vacío
 }
 
 function showQueueSection() {
@@ -438,6 +519,22 @@ function updateQueueUI() {
             elements.moveFolderBtn.title = `Mover ${count} video${count > 1 ? 's' : ''} a carpeta`;
         } else {
             elements.moveFolderBtn.classList.add('hidden');
+        }
+    }
+
+    // Actualizar visibilidad del botón "Descargar Seleccionados"
+    if (elements.downloadSelectedBtn) {
+        const selectedPending = Array.from(state.selectedQueueItems).filter(id => {
+            const item = state.queue.find(i => i.id === id);
+            return item && item.status === 'pending';
+        });
+        if (selectedPending.length > 0) {
+            elements.downloadSelectedBtn.classList.remove('hidden');
+            if (elements.selectedCount) {
+                elements.selectedCount.textContent = selectedPending.length;
+            }
+        } else {
+            elements.downloadSelectedBtn.classList.add('hidden');
         }
     }
 
@@ -482,6 +579,11 @@ function updateQueueUI() {
         const thumbnailSrc = item.thumbnail || placeholderThumb;
 
         div.innerHTML = `
+            <div class="queue-item-drag-handle" title="Arrastrar para reordenar">
+                <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M8 6H10M8 12H10M8 18H10M14 6H16M14 12H16M14 18H16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </div>
             <div class="queue-item-select" onclick="event.stopPropagation()">
                 <input type="checkbox" class="queue-checkbox" 
                     ${state.selectedQueueItems.has(item.id) ? 'checked' : ''} 
@@ -518,6 +620,18 @@ function updateQueueUI() {
                 </div>
             `}
         `;
+
+        // Habilitar drag solo para items pendientes
+        if (item.status === 'pending') {
+            div.draggable = true;
+            div.addEventListener('dragstart', handleDragStart);
+            div.addEventListener('dragend', handleDragEnd);
+            div.addEventListener('dragover', handleDragOver);
+            div.addEventListener('drop', handleDrop);
+            div.addEventListener('dragenter', handleDragEnter);
+            div.addEventListener('dragleave', handleDragLeave);
+        }
+
         elements.queueList.appendChild(div);
 
         // Listener para el checkbox
@@ -588,6 +702,18 @@ async function processQueue() {
 
     state.isProcessingQueue = true;
 
+    // Calcular total de items pendientes para el indicador de progreso
+    const pendingItems = state.queue.filter(i => i.status === 'pending');
+    const totalCount = pendingItems.length;
+    let completedCount = 0;
+
+    // Mostrar indicador de batch
+    if (elements.batchProgress && totalCount > 1) {
+        elements.batchProgress.classList.remove('hidden');
+        elements.batchTotal.textContent = totalCount;
+        elements.batchCurrent.textContent = completedCount;
+    }
+
     for (let i = 0; i < state.queue.length; i++) {
         const item = state.queue[i];
         if (item.status !== 'pending') continue;
@@ -631,14 +757,20 @@ async function processQueue() {
                     item.status = 'completed';
                     updateQueueUI();
 
-                    // Agregar al historial
+                    // Agregar al historial con URL para re-descarga
                     addToHistory({
                         filePath: data.filePath,
                         fileName: data.fileName,
                         fileSize: data.fileSize,
                         outputDir: data.outputDir,
-                        timestamp: Date.now()
+                        timestamp: Date.now(),
+                        url: item.url,
+                        title: item.title
                     });
+
+                    // Actualizar contador de batch
+                    completedCount++;
+                    if (elements.batchCurrent) elements.batchCurrent.textContent = completedCount;
 
                     resolve();
                 });
@@ -646,6 +778,8 @@ async function processQueue() {
                 eventSource.addEventListener('error', (e) => {
                     eventSource.close();
                     item.status = 'error';
+                    completedCount++;
+                    if (elements.batchCurrent) elements.batchCurrent.textContent = completedCount;
                     updateQueueUI();
                     resolve(); // Continuar con el siguiente
                 });
@@ -665,6 +799,12 @@ async function processQueue() {
     }
 
     state.isProcessingQueue = false;
+
+    // Ocultar indicador de batch
+    if (elements.batchProgress) {
+        elements.batchProgress.classList.add('hidden');
+    }
+
     showDownloadToast('✓ Cola completada', 'Todos los videos han sido descargados');
 }
 
@@ -778,25 +918,96 @@ function renderQualityButtons(qualities) {
     }
 
     defaultQualities.forEach((quality) => {
-        const btn = document.createElement('button');
-        btn.className = 'quality-btn' + (quality === defaultQuality ? ' active' : '');
-        btn.textContent = `${quality}p`;
-        btn.dataset.quality = quality;
-        btn.addEventListener('click', () => selectQuality(quality));
-        elements.qualitySelector.appendChild(btn);
+        const option = document.createElement('option');
+        option.value = quality;
+        option.textContent = `${quality}p`;
+        option.selected = quality === defaultQuality;
+        elements.qualitySelector.appendChild(option);
     });
 
     state.selectedQuality = defaultQuality;
+
+    // Agregar event listener para cambio de selección
+    elements.qualitySelector.onchange = (e) => {
+        const quality = parseInt(e.target.value);
+        selectQuality(quality);
+    };
 }
 
 function selectQuality(quality) {
     state.selectedQuality = quality;
-    document.querySelectorAll('.quality-btn').forEach(btn => {
-        btn.classList.toggle('active', parseInt(btn.dataset.quality) === quality);
-    });
     saveCurrentEdit(); // Auto-guardar cambios
     updateOptionsSummary();
 }
+
+// ═══════════════════════════════════════════════════════════
+// TIMELINE LOGIC
+// ═══════════════════════════════════════════════════════════
+
+let isDraggingStart = false;
+let isDraggingEnd = false;
+
+function initTimeline() {
+    if (!elements.handleStart || !elements.handleEnd || !elements.timelineTrack) return;
+
+    elements.handleStart.addEventListener('mousedown', startDragStart);
+    elements.handleStart.addEventListener('touchstart', startDragStart, { passive: false });
+
+    elements.handleEnd.addEventListener('mousedown', startDragEnd);
+    elements.handleEnd.addEventListener('touchstart', startDragEnd, { passive: false });
+
+    function startDragStart(e) {
+        isDraggingStart = true;
+        e.preventDefault();
+    }
+
+    function startDragEnd(e) {
+        isDraggingEnd = true;
+        e.preventDefault();
+    }
+
+    const handleMove = (e) => {
+        if (!isDraggingStart && !isDraggingEnd) return;
+        if (!state.duration) return;
+
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const rect = elements.timelineTrack.getBoundingClientRect();
+        let percentage = (clientX - rect.left) / rect.width;
+        percentage = Math.max(0, Math.min(1, percentage));
+
+        const time = percentage * state.duration;
+
+        if (isDraggingStart) {
+            if (time < state.endTime - 1) {
+                state.startTime = time;
+                elements.startTimeDisplay.textContent = formatDuration(time);
+            }
+        } else if (isDraggingEnd) {
+            if (time > state.startTime + 1) {
+                state.endTime = time;
+                elements.endTimeDisplay.textContent = formatDuration(time);
+            }
+        }
+
+        updateTimelineDisplay();
+    };
+
+    const stopDrag = () => {
+        if (isDraggingStart || isDraggingEnd) {
+            isDraggingStart = false;
+            isDraggingEnd = false;
+            saveCurrentEdit();
+        }
+    };
+
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('touchmove', handleMove, { passive: false });
+    document.addEventListener('mouseup', stopDrag);
+    document.addEventListener('touchend', stopDrag);
+}
+
+// Inicializar timeline si existen los elementos
+initTimeline();
 
 function updateTimelineDisplay() {
     // Check if all required timeline elements exist
@@ -869,16 +1080,45 @@ function updateProgressUI(progress, status) {
     }
 }
 
-function setDownloadingState(downloading) {
+function setDownloadingState(downloading, success = false) {
     state.isDownloading = downloading;
     elements.downloadBtn.disabled = downloading;
 
     const btnContent = elements.downloadBtn.querySelector('.btn-content');
     const btnLoader = elements.downloadBtn.querySelector('.btn-loader');
 
-    btnContent.classList.toggle('hidden', downloading);
-    btnLoader.classList.toggle('hidden', !downloading);
-    elements.progressContainer.classList.toggle('hidden', !downloading);
+    if (downloading) {
+        // Estado: Descargando
+        btnContent.classList.add('hidden');
+        btnLoader.classList.remove('hidden');
+        elements.progressContainer.classList.remove('hidden');
+        elements.downloadBtn.classList.remove('success');
+    } else if (success) {
+        // Estado: Éxito (Tick)
+        btnLoader.classList.add('hidden');
+        btnContent.classList.remove('hidden');
+        btnContent.innerHTML = '✓ Completado';
+        elements.downloadBtn.classList.add('success');
+        elements.progressContainer.classList.add('hidden');
+
+        // Revertir después de 3 segundos
+        setTimeout(() => {
+            btnContent.innerHTML = 'Descargar';
+            elements.downloadBtn.classList.remove('success');
+            // Si el video sigue cargado, habilitar botón
+            if (state.videoInfo) {
+                elements.downloadBtn.disabled = false;
+            }
+        }, 3000);
+    } else {
+        // Estado: Normal/Reset
+        btnContent.classList.remove('hidden');
+        btnContent.innerHTML = 'Descargar';
+        btnLoader.classList.add('hidden');
+        elements.progressContainer.classList.add('hidden');
+        elements.downloadBtn.classList.remove('success');
+        elements.downloadBtn.disabled = false;
+    }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -887,6 +1127,25 @@ function setDownloadingState(downloading) {
 
 // Fetch video info
 elements.fetchBtn.addEventListener('click', async () => {
+    fetchVideoFromInput();
+});
+
+// Auto-add from input (con debounce)
+elements.urlInput.addEventListener('input', debounce(() => {
+    const url = elements.urlInput.value.trim();
+    if (isValidVideoUrl(url) && !state.isLoading) {
+        fetchVideoFromInput();
+    }
+}, 500));
+
+// Helper validation (simple)
+function isValidVideoUrl(url) {
+    if (!url) return false;
+    return url.startsWith('http://') || url.startsWith('https://');
+}
+
+// Lógica principal de fetch extraída
+async function fetchVideoFromInput() {
     const url = elements.urlInput.value.trim();
 
     if (!url) {
@@ -941,7 +1200,7 @@ elements.fetchBtn.addEventListener('click', async () => {
     } finally {
         setLoading(elements.fetchBtn, false);
     }
-});
+}
 
 // Enter key on input
 elements.urlInput.addEventListener('keypress', (e) => {
@@ -950,7 +1209,7 @@ elements.urlInput.addEventListener('keypress', (e) => {
     }
 });
 
-// Toggle Audio (Checkbox)
+// Toggle Audio (Checkbox - hidden, controlled by format buttons)
 if (elements.audioToggle) {
     elements.audioToggle.addEventListener('change', (e) => {
         state.audioOnly = e.target.checked;
@@ -958,10 +1217,56 @@ if (elements.audioToggle) {
             elements.qualityCard.style.display = state.audioOnly ? 'none' : 'block';
         }
         saveCurrentEdit();
-        // updateQualityOptions(); // Function might not exist, checking dependencies...
-        if (typeof renderQualityButtons === 'function' && state.videoInfo) {
-            // Re-render might not be needed if we just hide the card
+    });
+}
+
+// Format Selector Buttons (Video/Audio)
+const formatVideoBtn = document.getElementById('formatVideo');
+const formatAudioBtn = document.getElementById('formatAudio');
+
+function setFormat(isAudio) {
+    state.audioOnly = isAudio;
+
+    // Actualizar botones visuales
+    if (formatVideoBtn && formatAudioBtn) {
+        formatVideoBtn.classList.toggle('active', !isAudio);
+        formatAudioBtn.classList.toggle('active', isAudio);
+    }
+
+    // Sincronizar con checkbox oculto
+    if (elements.audioToggle) {
+        elements.audioToggle.checked = isAudio;
+    }
+
+    // Mostrar/ocultar selector de calidad
+    if (elements.qualityCard) {
+        elements.qualityCard.style.display = isAudio ? 'none' : 'block';
+    }
+
+    saveCurrentEdit();
+}
+
+if (formatVideoBtn) {
+    formatVideoBtn.addEventListener('click', () => setFormat(false));
+}
+
+if (formatAudioBtn) {
+    formatAudioBtn.addEventListener('click', () => setFormat(true));
+}
+
+// Toggle Recortar (Trim)
+if (elements.trimEnabled && elements.timelineContainer) {
+    elements.trimEnabled.addEventListener('change', (e) => {
+        state.trimEnabled = e.target.checked;
+
+        // Mostrar/ocultar timeline
+        if (state.trimEnabled) {
+            elements.timelineContainer.classList.remove('hidden');
+        } else {
+            elements.timelineContainer.classList.add('hidden');
         }
+
+        saveCurrentEdit();
     });
 }
 
@@ -1254,6 +1559,111 @@ elements.downloadAllBtn.addEventListener('click', async () => {
     processQueue();
 });
 
+// Descargar solo los seleccionados
+if (elements.downloadSelectedBtn) {
+    elements.downloadSelectedBtn.addEventListener('click', async () => {
+        await processSelectedQueue();
+    });
+}
+
+// Función para descargar solo items seleccionados
+async function processSelectedQueue() {
+    if (state.isProcessingQueue || state.selectedQueueItems.size === 0) return;
+
+    // Si no hay carpeta configurada en Electron, pedir que seleccione una
+    if (isElectron && !state.downloadPath) {
+        const result = await window.electronAPI.selectFolder();
+        if (!result.success) {
+            showDownloadToast('⚠️ Selecciona una carpeta', 'Debes elegir dónde guardar los videos');
+            return;
+        }
+        state.downloadPath = result.path;
+        state.downloadPathName = result.name;
+        updateFolderDisplay();
+    }
+
+    state.isProcessingQueue = true;
+
+    // Filtrar solo los items seleccionados y pendientes
+    const selectedIds = Array.from(state.selectedQueueItems);
+
+    for (const id of selectedIds) {
+        const item = state.queue.find(i => i.id === id);
+        if (!item || item.status !== 'pending') continue;
+
+        item.status = 'downloading';
+        updateQueueUI();
+
+        try {
+            const params = new URLSearchParams({
+                url: item.url,
+                audioOnly: (item.audioOnly || false).toString()
+            });
+
+            if (!item.audioOnly && item.quality) {
+                params.set('quality', item.quality.toString());
+            }
+
+            if (item.trimEnabled && item.startTime !== undefined && item.endTime !== undefined) {
+                params.set('startTime', Math.floor(item.startTime).toString());
+                params.set('endTime', Math.floor(item.endTime).toString());
+            }
+
+            if (item.downloadPath) {
+                params.set('outputDir', item.downloadPath);
+            } else if (state.downloadPath) {
+                params.set('outputDir', state.downloadPath);
+            }
+
+            const downloadUrl = `${API_BASE}/api/download-stream?${params.toString()}`;
+
+            await new Promise((resolve) => {
+                const eventSource = new EventSource(downloadUrl);
+
+                eventSource.addEventListener('complete', (e) => {
+                    const data = JSON.parse(e.data);
+                    eventSource.close();
+                    item.status = 'completed';
+                    updateQueueUI();
+
+                    addToHistory({
+                        filePath: data.filePath,
+                        fileName: data.fileName,
+                        fileSize: data.fileSize,
+                        outputDir: data.outputDir,
+                        timestamp: Date.now()
+                    });
+
+                    resolve();
+                });
+
+                eventSource.addEventListener('error', () => {
+                    eventSource.close();
+                    item.status = 'error';
+                    updateQueueUI();
+                    resolve();
+                });
+
+                eventSource.onerror = () => {
+                    eventSource.close();
+                    item.status = 'error';
+                    updateQueueUI();
+                    resolve();
+                };
+            });
+
+        } catch (error) {
+            item.status = 'error';
+            updateQueueUI();
+        }
+    }
+
+    state.isProcessingQueue = false;
+    state.selectedQueueItems.clear();
+    updateQueueUI();
+    showDownloadToast('✓ Seleccionados completados', 'Los videos seleccionados han sido descargados');
+}
+
 // ═══════════════════════════════════════════════════════════
 // PLAYLIST MODAL EVENT HANDLERS
 // ═══════════════════════════════════════════════════════════
@@ -1491,7 +1901,7 @@ async function downloadWithProgress() {
         eventSource.addEventListener('complete', (e) => {
             const data = JSON.parse(e.data);
             eventSource.close();
-            setDownloadingState(false);
+            setDownloadingState(false, true); // Indicar éxito
 
             // Guardar último archivo descargado
             state.lastDownload = {
@@ -1693,7 +2103,9 @@ function addToHistory(download) {
         fileName: download.fileName,
         filePath: download.filePath,
         fileSize: download.fileSize,
-        timestamp: download.timestamp
+        timestamp: download.timestamp,
+        url: download.url || null,
+        title: download.title || null
     });
 
     saveHistory();
@@ -1737,6 +2149,14 @@ function updateHistoryUI() {
                 <div class="history-item-meta">${formatFileSize(item.fileSize)} • ${formatTimeAgo(item.timestamp)}</div>
             </div>
             <div class="history-item-actions">
+                ${item.url ? `
+                    <button class="history-item-btn redownload" data-action="redownload" data-url="${item.url}" data-title="${item.title || ''}" title="Re-descargar">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M12 3V15M12 15L7 10M12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                ` : ''}
                 ${isElectron ? `
                     <button class="history-item-btn" data-action="open" data-path="${item.filePath}" title="Abrir archivo">
                         <svg viewBox="0 0 24 24" fill="none">
@@ -1764,9 +2184,43 @@ function updateHistoryUI() {
                 window.electronAPI.openPath(path);
             } else if (action === 'folder' && isElectron) {
                 window.electronAPI.showItemInFolder(path);
+            } else if (action === 'redownload') {
+                const url = btn.dataset.url;
+                const title = btn.dataset.title;
+                redownloadFromHistory(url, title);
             }
         });
     });
+}
+
+// Re-descargar un video desde el historial
+async function redownloadFromHistory(url, title) {
+    if (!url) {
+        showDownloadToast('⚠️ Sin URL', 'Este item no puede ser re-descargado');
+        return;
+    }
+
+    // Cerrar modal del historial
+    hideHistoryModal();
+
+    // Poner URL en el input y analizar
+    elements.urlInput.value = url;
+    state.currentUrl = url;
+
+    // Simular click en analizar
+    clearError();
+    setLoading(elements.fetchBtn, true);
+    elements.videoPreview.classList.add('hidden');
+
+    try {
+        const info = await fetchVideoInfo(url);
+        displayVideoInfo(info);
+        showDownloadToast('🔄 Video cargado', title?.substring(0, 40) || 'Listo para descargar');
+    } catch (error) {
+        showError(error.message);
+    } finally {
+        setLoading(elements.fetchBtn, false);
+    }
 }
 
 function formatTimeAgo(timestamp) {

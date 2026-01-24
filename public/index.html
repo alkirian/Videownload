@@ -110,6 +110,17 @@
                     </h3>
                     <!-- Acciones de cola -->
                     <div class="queue-actions">
+                        <button id="downloadSelectedBtn" class="download-selected-btn hidden"
+                            title="Descargar videos seleccionados">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <path d="M9 11L12 14L22 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                                <path
+                                    d="M21 12V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3H16"
+                                    stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            </svg>
+                            Descargar Seleccionados (<span id="selectedCount">0</span>)
+                        </button>
                         <button id="downloadAllBtn" class="download-all-btn" title="Descargar todos los videos">
                             <svg viewBox="0 0 24 24" fill="none">
                                 <path d="M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15"
@@ -140,6 +151,20 @@
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- Indicador de progreso de batch -->
+                <div id="batchProgress" class="batch-progress hidden">
+                    <div class="batch-progress-icon">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            <path d="M12 3V15M12 15L7 10M12 15L17 10" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </div>
+                    <span class="batch-progress-text">Descargando <strong id="batchCurrent">0</strong> de <strong
+                            id="batchTotal">0</strong></span>
                 </div>
 
                 <!-- Barra de progreso GLOBAL (movida aquí) -->
@@ -183,20 +208,38 @@
                             </select>
                         </div>
 
-                        <!-- Opciones de Audio y Trim -->
-                        <div class="toggles-sidebar">
-                            <label class="toggle-option-sidebar">
-                                <input type="checkbox" id="audioToggle">
-                                <span class="toggle-slider"></span>
-                                <span class="toggle-label">Solo Audio</span>
-                            </label>
+                        <!-- Selector de Formato (Video/Audio) -->
+                        <div class="format-selector">
+                            <button type="button" id="formatVideo" class="format-btn active" data-format="video">
+                                <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
+                                    <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor"
+                                        stroke-width="2" />
+                                    <path d="M10 9L15 12L10 15V9Z" fill="currentColor" />
+                                </svg>
+                                Video
+                            </button>
+                            <button type="button" id="formatAudio" class="format-btn" data-format="audio">
+                                <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
+                                    <path d="M9 18V5L21 3V16" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round" />
+                                    <circle cx="6" cy="18" r="3" stroke="currentColor" stroke-width="2" />
+                                    <circle cx="18" cy="16" r="3" stroke="currentColor" stroke-width="2" />
+                                </svg>
+                                Audio
+                            </button>
+                        </div>
 
+                        <!-- Toggle de Recorte -->
+                        <div class="toggles-sidebar">
                             <label class="toggle-option-sidebar">
                                 <input type="checkbox" id="trimEnabled">
                                 <span class="toggle-slider"></span>
                                 <span class="toggle-label">Recortar</span>
                             </label>
                         </div>
+
+                        <!-- Input oculto para mantener compatibilidad -->
+                        <input type="checkbox" id="audioToggle" class="hidden">
 
                         <!-- Timeline (solo visible si Trim activado) -->
                         <div id="timelineContainer" class="timeline-container-sidebar hidden">
@@ -217,7 +260,8 @@
                         Actualizar Opciones
                     </button>
                     <button id="downloadBtn" class="download-btn-sidebar interact-btn primary hidden">
-                        Descargar
+                        <span class="btn-content">Descargar</span>
+                        <div class="btn-loader hidden"></div>
                     </button>
                 </section>
 

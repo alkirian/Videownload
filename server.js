@@ -6,9 +6,61 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const archiver = require('archiver');
+const https = require('https');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+console.log('--- Servidor Express inicializando ---');
+
+// GET /api/proxy-thumbnail - Proxy para miniaturas que fallan por CORS (Instagram, etc)
+app.get('/api/proxy-thumbnail', (req, res) => {
+    const { url } = req.query;
+    console.log('Hit /api/proxy-thumbnail wrapper:', url ? url.substring(0, 50) + '...' : 'no url');
+
+    if (!url) return res.status(400).send('URL requerida');
+
+    // Forzar referer de Instagram para evitar bloqueos
+    const options = {
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer': 'https://www.instagram.com/'
+        },
+        timeout: 5000
+    };
+
+    const request = https.get(url, options, (proxyRes) => {
+        console.log('Proxy response status:', proxyRes.statusCode);
+
+        // Manejar redirecciones
+        if (proxyRes.statusCode === 301 || proxyRes.statusCode === 302) {
+            const redirectUrl = proxyRes.headers.location;
+            if (redirectUrl) {
+                https.get(redirectUrl, options, (redirRes) => {
+                    res.setHeader('Content-Type', redirRes.headers['content-type'] || 'image/jpeg');
+                    redirRes.pipe(res);
+                }).on('error', (e) => {
+                    console.error('Proxy redirect error:', e);
+                    res.status(500).send('Error in redirect');
+                });
+                return;
+            }
+        }
+
+        if (proxyRes.statusCode !== 200) {
+            return res.status(proxyRes.statusCode).send('Error fetching image');
+        }
+
+        res.setHeader('Content-Type', proxyRes.headers['content-type'] || 'image/jpeg');
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+        proxyRes.pipe(res);
+    });
+
+    request.on('error', (err) => {
+        console.error('Error proxying thumbnail:', err);
+        res.status(500).send('Error proxying thumbnail');
+    });
+});
 
 // ═══════════════════════════════════════════════════════════
 // DETECCIÓN DE MODO ELECTRON Y RUTAS DE HERRAMIENTAS
@@ -321,6 +373,7 @@ app.get('/api/info', async (req, res) => {
             '--dump-json',
             '--no-playlist',
             '--ignore-errors',
+            '--no-check-certificate',
             '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
             url
         ]);
@@ -369,12 +422,24 @@ app.get('/api/info', async (req, res) => {
                 .map(f => f.height)
         )].sort((a, b) => b - a);
 
+        // Fallbacks para título (Vimeo y otros pueden usar diferentes campos)
+        const videoTitle = info.title || info.fulltitle || info.alt_title ||
+            info.track || info.description?.substring(0, 50) || 'Video sin título';
+
+        // Fallbacks para thumbnail (algunos sitios tienen el thumbnail en un array)
+        let videoThumbnail = info.thumbnail;
+        if (!videoThumbnail && info.thumbnails && info.thumbnails.length > 0) {
+            // Preferir el de mejor calidad (último en el array generalmente)
+            const thumbs = info.thumbnails;
+            videoThumbnail = thumbs[thumbs.length - 1]?.url || thumbs[0]?.url;
+        }
+
         res.json({
             id: info.id,
-            title: info.title,
-            thumbnail: info.thumbnail,
+            title: videoTitle,
+            thumbnail: videoThumbnail,
             duration: info.duration,
-            uploader: info.uploader || info.channel || info.creator || platformConfig.name,
+            uploader: info.uploader || info.channel || info.creator || info.uploader_id || platformConfig.name,
             view_count: info.view_count,
             upload_date: info.upload_date,
             description: info.description?.substring(0, 200),

@@ -39,7 +39,16 @@ const state = {
     // Último archivo descargado (para modal de éxito)
     lastDownload: null,
     // Selección de items en la cola
-    selectedQueueItems: new Set()
+    selectedQueueItems: new Set(),
+    // Configuraciones
+    settings: {
+        autoStart: false,
+        downloadFolder: null,
+        showNotification: true,
+        playSound: false,
+        theme: 'dark',
+        historyLimit: 50
+    }
 };
 
 // Elementos del DOM
@@ -118,7 +127,18 @@ const elements = {
     // Empty State y Sidebar
     emptyState: document.getElementById('emptyState'),
     noSelectionState: document.getElementById('noSelectionState'), // New state
-    // Removed Advanced Options references as they are now always visible in sidebar
+    // Settings Modal
+    openSettingsBtn: document.getElementById('openSettingsBtn'),
+    settingsModal: document.getElementById('settingsModal'),
+    closeSettingsModal: document.getElementById('closeSettingsModal'),
+    settingAutoStart: document.getElementById('settingAutoStart'),
+    settingFolderPath: document.getElementById('settingFolderPath'),
+    settingFolderBtn: document.getElementById('settingFolderBtn'),
+    settingNotification: document.getElementById('settingNotification'),
+    settingSound: document.getElementById('settingSound'),
+    settingTheme: document.getElementById('settingTheme'),
+    settingHistoryLimit: document.getElementById('settingHistoryLimit'),
+    saveSettingsBtn: document.getElementById('saveSettingsBtn'),
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -601,9 +621,36 @@ function updateQueueUI() {
                     <div class="loader-ring" style="width:14px;height:14px;border-width:2px;"></div>
                 </div>
             ` : item.status === 'completed' ? `
-                <div class="queue-item-status completed">✓</div>
+                <div class="queue-item-status completed">
+                    <span class="completed-check">✓</span>
+                    <span class="completed-text">Completado</span>
+                </div>
+                <div class="queue-item-actions-hover">
+                    <button class="queue-item-redownload" data-id="${item.id}" title="Volver a descargar">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <path d="M12 3V15M12 15L7 10M12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                    ${isElectron ? `
+                    <button class="queue-item-folder-btn" data-id="${item.id}" title="Abrir carpeta">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M10 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V8C22 6.9 21.1 6 20 6H12L10 4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                    ` : ''}
+                </div>
             ` : item.status === 'error' ? `
-                <div class="queue-item-status error">✗</div>
+                <div class="queue-item-status error">✗ Error</div>
+                <div class="queue-item-actions-hover">
+                    <button class="queue-item-redownload" data-id="${item.id}" title="Reintentar descarga">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M1 4V10H7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M3.51 15C4.15 17.83 6.47 20 9.5 20C12.5 20 15 18 16 15M23 20V14H17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M20.49 9C19.85 6.17 17.53 4 14.5 4C11.5 4 9 6 8 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
             ` : `
                 <div class="queue-item-actions">
                     <button class="queue-item-download" data-id="${item.id}" title="Descargar este video">
@@ -658,6 +705,34 @@ function updateQueueUI() {
             e.stopPropagation();
             const id = e.currentTarget.dataset.id;
             downloadSingleItem(id);
+        });
+    });
+
+    // Event listeners para volver a descargar items completados o con error
+    document.querySelectorAll('.queue-item-redownload').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = e.currentTarget.dataset.id;
+            const item = state.queue.find(i => i.id === id);
+            if (item) {
+                item.status = 'pending';
+                updateQueueUI();
+                downloadSingleItem(id);
+            }
+        });
+    });
+
+    // Event listeners para abrir carpeta de items completados
+    document.querySelectorAll('.queue-item-folder-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const id = e.currentTarget.dataset.id;
+            const item = state.queue.find(i => i.id === id);
+            if (item && item.downloadPath && window.electronAPI) {
+                await window.electronAPI.openPath(item.downloadPath);
+            } else if (state.downloadPath && window.electronAPI) {
+                await window.electronAPI.openPath(state.downloadPath);
+            }
         });
     });
 
@@ -805,6 +880,9 @@ async function processQueue() {
         elements.batchProgress.classList.add('hidden');
     }
 
+    // Reproducir sonido de notificación si está habilitado
+    playNotificationSound();
+
     showDownloadToast('✓ Cola completada', 'Todos los videos han sido descargados');
 }
 
@@ -851,7 +929,12 @@ function displayVideoInfo(info) {
     };
 
     if (info.thumbnail) {
-        elements.thumbnail.src = info.thumbnail;
+        // Usar proxy para Instagram para evitar bloqueos de CORS/Referer
+        if (info.platform === 'instagram' || info.thumbnail.includes('instagram.com')) {
+            elements.thumbnail.src = `${API_BASE}/api/proxy-thumbnail?url=${encodeURIComponent(info.thumbnail)}`;
+        } else {
+            elements.thumbnail.src = info.thumbnail;
+        }
     } else {
         elements.thumbnail.src = placeholderSvg;
     }
@@ -2072,6 +2155,30 @@ if (elements.openFolderBtn && isElectron) {
     });
 }
 
+// Función global para abrir carpeta de un item específico
+window.openItemFolder = (id) => {
+    // Buscar en historial reciente o en la cola completada
+    const item = state.queue.find(i => i.id === id);
+    if (item) {
+        // Intentar encontrar la ruta en el historial reciente
+        const historyItem = state.downloadHistory.find(h => h.url === item.url && h.timestamp > Date.now() - 3600000); // 1 hora
+
+        let path = item.downloadPath || state.downloadPath;
+        if (historyItem) {
+            path = historyItem.filePath;
+            if (path) {
+                window.electronAPI.showItemInFolder(path);
+                return;
+            }
+        }
+
+        // Fallback a abrir la carpeta de descarga
+        if (path) {
+            window.electronAPI.openFolder(path);
+        }
+    }
+};
+
 // Reintentar descarga
 if (elements.retryDownloadBtn) {
     elements.retryDownloadBtn.addEventListener('click', () => {
@@ -2238,7 +2345,7 @@ function formatTimeAgo(timestamp) {
 // Event listeners para historial modal
 function showHistoryModal() {
     if (elements.historyModal) {
-        updateHistoryUI(); // Actualizar al abrir
+        updateHistoryUI();
         elements.historyModal.classList.remove('hidden');
     }
 }
@@ -2258,7 +2365,6 @@ if (elements.closeHistoryModal) {
 }
 
 if (elements.historyModal) {
-    // Cerrar al hacer clic fuera
     elements.historyModal.querySelector('.modal-backdrop')?.addEventListener('click', hideHistoryModal);
 }
 
@@ -2268,3 +2374,208 @@ if (elements.clearHistoryBtn) {
 
 // Inicializar UI del historial
 updateHistoryUI();
+
+// ═══════════════════════════════════════════════════════════
+// SETTINGS MODAL
+// ═══════════════════════════════════════════════════════════
+
+// Cargar configuraciones desde localStorage o Electron
+async function loadSettings() {
+    // Cargar desde localStorage primero
+    const savedSettings = localStorage.getItem('appSettings');
+    if (savedSettings) {
+        state.settings = { ...state.settings, ...JSON.parse(savedSettings) };
+    }
+
+    // Si estamos en Electron, cargar también desde el main process
+    if (isElectron && window.electronAPI.getSettings) {
+        try {
+            const electronSettings = await window.electronAPI.getSettings();
+            if (electronSettings) {
+                state.settings = { ...state.settings, ...electronSettings };
+            }
+        } catch (e) {
+            console.log('No se pudieron cargar settings de Electron');
+        }
+    }
+
+    // Aplicar tema guardado
+    applyTheme(state.settings.theme);
+
+    // Aplicar límite de historial
+    if (state.downloadHistory.length > state.settings.historyLimit) {
+        state.downloadHistory = state.downloadHistory.slice(-state.settings.historyLimit);
+        localStorage.setItem('downloadHistory', JSON.stringify(state.downloadHistory));
+    }
+}
+
+// Guardar configuraciones
+async function saveSettings() {
+    // Leer valores del modal
+    state.settings.autoStart = elements.settingAutoStart?.checked || false;
+    state.settings.showNotification = elements.settingNotification?.checked || true;
+    state.settings.playSound = elements.settingSound?.checked || false;
+    state.settings.theme = elements.settingTheme?.value || 'dark';
+    state.settings.historyLimit = parseInt(elements.settingHistoryLimit?.value) || 50;
+
+    // Guardar en localStorage
+    localStorage.setItem('appSettings', JSON.stringify(state.settings));
+
+    // Aplicar tema inmediatamente
+    applyTheme(state.settings.theme);
+
+    // Si estamos en Electron, guardar también en el main process
+    if (isElectron && window.electronAPI.saveSettings) {
+        try {
+            await window.electronAPI.saveSettings(state.settings);
+        } catch (e) {
+            console.error('Error guardando settings en Electron:', e);
+        }
+    }
+
+    // Cerrar modal y mostrar feedback
+    hideSettingsModal();
+    showDownloadToast('✓ Configuración guardada', 'Los cambios se aplicaron correctamente');
+}
+
+// Aplicar tema
+function applyTheme(theme) {
+    document.body.classList.remove('theme-dark', 'theme-light', 'theme-system');
+    document.body.classList.add(`theme-${theme}`);
+
+    // Si es 'system', detectar preferencia del sistema
+    if (theme === 'system') {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.body.classList.add(prefersDark ? 'theme-dark' : 'theme-light');
+    }
+}
+
+// Actualizar UI del modal con valores actuales
+function updateSettingsUI() {
+    if (elements.settingAutoStart) elements.settingAutoStart.checked = state.settings.autoStart;
+    if (elements.settingNotification) elements.settingNotification.checked = state.settings.showNotification;
+    if (elements.settingSound) elements.settingSound.checked = state.settings.playSound;
+    if (elements.settingTheme) elements.settingTheme.value = state.settings.theme;
+    if (elements.settingHistoryLimit) elements.settingHistoryLimit.value = state.settings.historyLimit;
+
+    // Mostrar carpeta de descarga actual
+    if (elements.settingFolderPath) {
+        const folderPath = state.settings.downloadFolder || state.downloadPath;
+        elements.settingFolderPath.textContent = folderPath
+            ? folderPath.split(/[/\\]/).pop()
+            : 'Sin configurar';
+        elements.settingFolderPath.title = folderPath || '';
+    }
+}
+
+// Mostrar modal
+function showSettingsModal() {
+    updateSettingsUI();
+    if (elements.settingsModal) {
+        elements.settingsModal.classList.remove('hidden');
+    }
+}
+
+// Ocultar modal
+function hideSettingsModal() {
+    if (elements.settingsModal) {
+        elements.settingsModal.classList.add('hidden');
+    }
+}
+
+// Event listeners para settings
+if (elements.openSettingsBtn) {
+    elements.openSettingsBtn.addEventListener('click', showSettingsModal);
+}
+
+if (elements.closeSettingsModal) {
+    elements.closeSettingsModal.addEventListener('click', hideSettingsModal);
+}
+
+if (elements.settingsModal) {
+    elements.settingsModal.querySelector('.modal-backdrop')?.addEventListener('click', hideSettingsModal);
+}
+
+if (elements.saveSettingsBtn) {
+    elements.saveSettingsBtn.addEventListener('click', saveSettings);
+}
+
+// Selector de carpeta en settings
+if (elements.settingFolderBtn && isElectron) {
+    elements.settingFolderBtn.addEventListener('click', async () => {
+        const result = await window.electronAPI.selectFolder();
+        if (result && result.success) {
+            state.settings.downloadFolder = result.path;
+            state.downloadPath = result.path;
+            state.downloadPathName = result.name;
+            updateSettingsUI();
+            updateFolderDisplay();
+        }
+    });
+}
+
+// Cargar settings al inicio
+loadSettings();
+
+// ═══════════════════════════════════════════════════════════
+// NOTIFICATION SOUND
+// ═══════════════════════════════════════════════════════════
+
+// Audio context para notificaciones
+let audioContext = null;
+
+function playNotificationSound() {
+    // Solo reproducir si está habilitado en configuración
+    if (!state.settings.playSound) return;
+
+    try {
+        // Crear audio context si no existe
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        // Crear un sonido de campana/chime agradable
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        // Frecuencia de campana (C5 - nota agradable)
+        oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime);
+        oscillator.type = 'sine';
+
+        // Envelope para sonido suave
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.05);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.5);
+
+        // Segundo tono armónico
+        setTimeout(() => {
+            const osc2 = audioContext.createOscillator();
+            const gain2 = audioContext.createGain();
+
+            osc2.connect(gain2);
+            gain2.connect(audioContext.destination);
+
+            osc2.frequency.setValueAtTime(659.25, audioContext.currentTime); // E5
+            osc2.type = 'sine';
+
+            gain2.gain.setValueAtTime(0, audioContext.currentTime);
+            gain2.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.05);
+            gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+
+            osc2.start(audioContext.currentTime);
+            osc2.stop(audioContext.currentTime + 0.4);
+        }, 150);
+
+    } catch (e) {
+        console.log('No se pudo reproducir sonido de notificación:', e);
+    }
+}
+
+// Exponer globalmente para que otros módulos puedan usarlo
+window.playNotificationSound = playNotificationSound;

@@ -1,6 +1,6 @@
 {
   "name": "videownload",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Aplicación de escritorio para descargar videos de YouTube, TikTok, Instagram y Twitter",
   "main": "main.js",
   "author": "Videownload",

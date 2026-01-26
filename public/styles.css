@@ -3649,3 +3649,89 @@ body {
     align-items: center;
     color: var(--accent-primary);
 }
+
+/* ═══════════════════════════════════════════════════════════
+   BATCH PROGRESS & STOP QUEUE
+   ═══════════════════════════════════════════════════════════ */
+
+.batch-progress {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    margin-top: var(--space-md);
+}
+
+.batch-progress-icon {
+    width: 24px;
+    height: 24px;
+    color: var(--accent-primary);
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.batch-progress-icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+.batch-progress-text {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    flex: 1;
+}
+
+.batch-progress-text strong {
+    color: var(--text-primary);
+}
+
+/* Stop Queue Button */
+.stop-queue-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-xs) var(--space-sm);
+    background: transparent;
+    border: 1px solid var(--error);
+    border-radius: var(--radius-sm);
+    color: var(--error);
+    font-size: 0.8rem;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.stop-queue-btn:hover {
+    background: var(--error);
+    color: white;
+}
+
+.stop-queue-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Cancelled queue item state */
+.queue-item.cancelled {
+    opacity: 0.6;
+    border-color: var(--warning);
+}
+
+.queue-item.cancelled .queue-item-status {
+    color: var(--warning);
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}

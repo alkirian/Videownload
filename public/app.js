@@ -28,6 +28,8 @@ const state = {
     // Cola de descargas
     queue: [],
     isProcessingQueue: false,
+    isQueuePaused: false,
+    currentEventSource: null,
     // Playlist
     pendingPlaylistVideos: [],
     currentUrl: '',
@@ -93,6 +95,7 @@ const elements = {
     batchProgress: document.getElementById('batchProgress'),
     batchCurrent: document.getElementById('batchCurrent'),
     batchTotal: document.getElementById('batchTotal'),
+    stopQueueBtn: document.getElementById('stopQueueBtn'),
     // Modal Playlist
     playlistModal: document.getElementById('playlistModal'),
     playlistInfo: document.getElementById('playlistInfo'),
@@ -283,13 +286,94 @@ async function downloadSingleItem(id) {
     const item = state.queue.find(i => i.id === id);
     if (!item || item.status !== 'pending') return;
 
-    // Marcar solo este item para descarga
-    state.selectedQueueItems.clear();
-    state.selectedQueueItems.add(id);
+    // Si no hay carpeta configurada en Electron, pedir que seleccione una
+    if (isElectron && !state.downloadPath && !item.downloadPath) {
+        const result = await window.electronAPI.selectFolder();
+        if (!result.success) {
+            showDownloadToast('⚠️ Selecciona una carpeta', 'Debes elegir dónde guardar el video');
+            return;
+        }
+        state.downloadPath = result.path;
+        state.downloadPathName = result.name;
+        updateFolderDisplay();
+    }
+
+    item.status = 'downloading';
     updateQueueUI();
 
-    // Iniciar descarga de este item
-    await processQueue();
+    try {
+        const params = new URLSearchParams({
+            url: item.url,
+            audioOnly: (item.audioOnly || false).toString()
+        });
+
+        if (!item.audioOnly && item.quality) {
+            params.set('quality', item.quality.toString());
+        }
+
+        if (item.trimEnabled && item.startTime !== undefined && item.endTime !== undefined) {
+            params.set('startTime', Math.floor(item.startTime).toString());
+            params.set('endTime', Math.floor(item.endTime).toString());
+        }
+
+        if (item.downloadPath) {
+            params.set('outputDir', item.downloadPath);
+        } else if (state.downloadPath) {
+            params.set('outputDir', state.downloadPath);
+        }
+
+        const downloadUrl = `${API_BASE}/api/download-stream?${params.toString()}`;
+
+        await new Promise((resolve, reject) => {
+            const eventSource = new EventSource(downloadUrl);
+            state.currentEventSource = eventSource;
+
+            eventSource.addEventListener('complete', (e) => {
+                const data = JSON.parse(e.data);
+                eventSource.close();
+                state.currentEventSource = null;
+                item.status = 'completed';
+                updateQueueUI();
+
+                addToHistory({
+                    filePath: data.filePath,
+                    fileName: data.fileName,
+                    fileSize: data.fileSize,
+                    outputDir: data.outputDir,
+                    timestamp: Date.now(),
+                    url: item.url,
+                    title: item.title
+                });
+
+                playNotificationSound();
+                showDownloadToast('✓ Descarga completada', item.title);
+                resolve();
+            });
+
+            eventSource.addEventListener('error', (e) => {
+                eventSource.close();
+                state.currentEventSource = null;
+                item.status = 'error';
+                updateQueueUI();
+                showDownloadToast('✗ Error en descarga', item.title);
+                resolve();
+            });
+
+            eventSource.onerror = () => {
+                eventSource.close();
+                state.currentEventSource = null;
+                if (item.status === 'downloading') {
+                    item.status = 'error';
+                }
+                updateQueueUI();
+                resolve();
+            };
+        });
+
+    } catch (error) {
+        item.status = 'error';
+        updateQueueUI();
+    }
 }
 
 function toggleQueueItemSelection(id, selected) {
@@ -776,6 +860,7 @@ async function processQueue() {
     }
 
     state.isProcessingQueue = true;
+    state.isQueuePaused = false;
 
     // Calcular total de items pendientes para el indicador de progreso
     const pendingItems = state.queue.filter(i => i.status === 'pending');
@@ -790,6 +875,11 @@ async function processQueue() {
     }
 
     for (let i = 0; i < state.queue.length; i++) {
+        // Verificar si la cola fue pausada/detenida
+        if (state.isQueuePaused) {
+            break;
+        }
+
         const item = state.queue[i];
         if (item.status !== 'pending') continue;
 
@@ -825,6 +915,7 @@ async function processQueue() {
             // Descargar con SSE
             await new Promise((resolve, reject) => {
                 const eventSource = new EventSource(downloadUrl);
+                state.currentEventSource = eventSource;
 
                 eventSource.addEventListener('complete', (e) => {
                     const data = JSON.parse(e.data);
@@ -847,6 +938,7 @@ async function processQueue() {
                     completedCount++;
                     if (elements.batchCurrent) elements.batchCurrent.textContent = completedCount;
 
+                    state.currentEventSource = null;
                     resolve();
                 });
 
@@ -856,12 +948,17 @@ async function processQueue() {
                     completedCount++;
                     if (elements.batchCurrent) elements.batchCurrent.textContent = completedCount;
                     updateQueueUI();
+                    state.currentEventSource = null;
                     resolve(); // Continuar con el siguiente
                 });
 
                 eventSource.onerror = () => {
                     eventSource.close();
-                    item.status = 'error';
+                    state.currentEventSource = null;
+                    // Solo marcar error si no fue cancelado manualmente
+                    if (item.status === 'downloading') {
+                        item.status = 'error';
+                    }
                     updateQueueUI();
                     resolve();
                 };
@@ -884,6 +981,43 @@ async function processQueue() {
     playNotificationSound();
 
     showDownloadToast('✓ Cola completada', 'Todos los videos han sido descargados');
+}
+
+// ═══════════════════════════════════════════════════════════
+// STOP QUEUE FUNCTIONS
+// ═══════════════════════════════════════════════════════════
+
+function stopQueue() {
+    if (!state.isProcessingQueue) return;
+
+    // Marcar que la cola debe detenerse
+    state.isQueuePaused = true;
+
+    // Cerrar EventSource actual si existe
+    if (state.currentEventSource) {
+        state.currentEventSource.close();
+        state.currentEventSource = null;
+    }
+
+    // Marcar el item actual como cancelado
+    const downloadingItem = state.queue.find(item => item.status === 'downloading');
+    if (downloadingItem) {
+        downloadingItem.status = 'cancelled';
+    }
+
+    // Resetear estado de procesamiento
+    state.isProcessingQueue = false;
+
+    // Ocultar indicadores de progreso
+    if (elements.batchProgress) {
+        elements.batchProgress.classList.add('hidden');
+    }
+    if (elements.progressContainer) {
+        elements.progressContainer.classList.add('hidden');
+    }
+
+    updateQueueUI();
+    showDownloadToast('⏹ Cola detenida', 'Los videos pendientes pueden reiniciarse');
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1641,6 +1775,13 @@ elements.downloadAllBtn.addEventListener('click', async () => {
     // Descargar todos los videos individualmente
     processQueue();
 });
+
+// Detener cola de descargas
+if (elements.stopQueueBtn) {
+    elements.stopQueueBtn.addEventListener('click', () => {
+        stopQueue();
+    });
+}
 
 // Descargar solo los seleccionados
 if (elements.downloadSelectedBtn) {
